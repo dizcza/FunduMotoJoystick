@@ -1,4 +1,4 @@
-package de.kai_morich.simple_bluetooth_terminal;
+package de.kai_morich.fundu_moto_joystick;
 
 class Constants {
 

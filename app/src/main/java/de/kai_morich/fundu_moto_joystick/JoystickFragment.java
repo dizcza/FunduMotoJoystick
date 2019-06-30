@@ -1,5 +1,6 @@
-package de.kai_morich.simple_bluetooth_terminal;
+package de.kai_morich.fundu_moto_joystick;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
@@ -13,36 +14,29 @@ import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
-import android.text.Spannable;
-import android.text.SpannableStringBuilder;
-import android.text.method.ScrollingMovementMethod;
-import android.text.style.ForegroundColorSpan;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
 import android.view.MenuItem;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
-import android.widget.TextView;
+import android.widget.ImageView;
 import android.widget.Toast;
 
-import java.util.Date;
-
-public class TerminalFragment extends Fragment implements ServiceConnection, SerialListener {
+public class JoystickFragment extends Fragment implements ServiceConnection, SerialListener {
 
     private enum Connected { False, Pending, True }
 
     private String deviceAddress;
     private String newline = "\r\n";
 
-    private TextView receiveText;
-
     private SerialSocket socket;
     private SerialService service;
     private boolean initialStart = true;
     private Connected connected = Connected.False;
 
-    public TerminalFragment() {
+    public JoystickFragment() {
     }
 
     /*
@@ -119,44 +113,36 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     /*
      * UI
      */
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.fragment_terminal, container, false);
-        receiveText = view.findViewById(R.id.receive_text);                          // TextView performance decreases with number of spans
-        receiveText.setTextColor(getResources().getColor(R.color.colorRecieveText)); // set as default color to reduce number of spans
-        receiveText.setMovementMethod(ScrollingMovementMethod.getInstance());
-        TextView sendText = view.findViewById(R.id.send_text);
-        View sendBtn = view.findViewById(R.id.send_btn);
-        sendBtn.setOnClickListener(v -> send(sendText.getText().toString()));
+        View view = inflater.inflate(R.layout.joystick, container, false);
+        ImageView directionCircleView = view.findViewById(R.id.circle_direction_view);
+        ImageView bgCircleView = view.findViewById(R.id.circle_background_view);
+        directionCircleView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View view, MotionEvent motionEvent) {
+                switch (motionEvent.getAction()) {
+                    case MotionEvent.ACTION_MOVE: {
+                        directionCircleView.setX(motionEvent.getRawX() - bgCircleView.getX());
+                        directionCircleView.setY(motionEvent.getRawY() - bgCircleView.getY());
+                    }
+                    break;
+                    case MotionEvent.ACTION_UP: {
+                        directionCircleView.setX((bgCircleView.getWidth() - directionCircleView.getWidth()) / 2.f + bgCircleView.getX());
+                        directionCircleView.setY((bgCircleView.getHeight() - directionCircleView.getHeight()) / 2.f + bgCircleView.getY());
+                    }
+                    break;
+                }
+                return true;
+            }
+        });
         return view;
     }
 
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.menu_terminal, menu);
-    }
-
-    @Override
-    public boolean onOptionsItemSelected(MenuItem item) {
-        int id = item.getItemId();
-        if (id == R.id.clear) {
-            receiveText.setText("");
-            return true;
-        } else if (id ==R.id.newline) {
-            String[] newlineNames = getResources().getStringArray(R.array.newline_names);
-            String[] newlineValues = getResources().getStringArray(R.array.newline_values);
-            int pos = java.util.Arrays.asList(newlineValues).indexOf(newline);
-            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-            builder.setTitle("Newline");
-            builder.setSingleChoiceItems(newlineNames, pos, (dialog, item1) -> {
-                newline = newlineValues[item1];
-                dialog.dismiss();
-            });
-            builder.create().show();
-            return true;
-        } else {
-            return super.onOptionsItemSelected(item);
-        }
     }
 
     /*
@@ -190,9 +176,6 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
             return;
         }
         try {
-            SpannableStringBuilder spn = new SpannableStringBuilder(str+'\n');
-            spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorSendText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-            receiveText.append(spn);
             byte[] data = (str + newline).getBytes();
             socket.write(data);
         } catch (Exception e) {
@@ -201,14 +184,30 @@ public class TerminalFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void receive(byte[] data) {
-        receiveText.append(new String(data));
     }
 
     private void status(String str) {
-        SpannableStringBuilder spn = new SpannableStringBuilder(str+'\n');
-        spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        receiveText.append(spn);
     }
+
+    @Override
+    public boolean onOptionsItemSelected(MenuItem item) {
+        if (item.getItemId() == R.id.newline) {
+            String[] newlineNames = getResources().getStringArray(R.array.newline_names);
+            String[] newlineValues = getResources().getStringArray(R.array.newline_values);
+            int pos = java.util.Arrays.asList(newlineValues).indexOf(newline);
+            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+            builder.setTitle("Newline");
+            builder.setSingleChoiceItems(newlineNames, pos, (dialog, item1) -> {
+                newline = newlineValues[item1];
+                dialog.dismiss();
+            });
+            builder.create().show();
+            return true;
+        } else {
+            return super.onOptionsItemSelected(item);
+        }
+    }
+
 
     /*
      * SerialListener

@@ -1,11 +1,10 @@
-package de.kai_morich.simple_bluetooth_terminal;
+package de.kai_morich.fundu_moto_joystick;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Bundle;
-import android.support.annotation.NonNull;
 import android.support.v4.app.Fragment;
 import android.support.v4.app.ListFragment;
 import android.view.Menu;
@@ -109,7 +108,7 @@ public class DevicesFragment extends ListFragment {
         BluetoothDevice device = listItems.get(position-1);
         Bundle args = new Bundle();
         args.putString("device", device.getAddress());
-        Fragment fragment = new TerminalFragment();
+        Fragment fragment = new JoystickFragment();
         fragment.setArguments(args);
         getFragmentManager().beginTransaction().replace(R.id.fragment, fragment, "terminal").addToBackStack(null).commit();
     }
