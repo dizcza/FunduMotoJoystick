@@ -9,9 +9,12 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.graphics.Point;
 import android.graphics.PointF;
 import android.os.Bundle;
+import android.os.Handler;
 import android.os.IBinder;
+import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
@@ -26,6 +29,10 @@ import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.Toast;
 
+import java.io.IOException;
+import java.util.Timer;
+import java.util.TimerTask;
+
 public class JoystickFragment extends Fragment implements ServiceConnection, SerialListener {
 
     private enum Connected { False, Pending, True }
@@ -39,8 +46,34 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private Connected connected = Connected.False;
 
     private PointF mCircleInitPos;
+    private final Point mMoveVector = new Point(0, 0);
+    private Timer mTimer;
+    private static final long SEND_UPDATE_PERIOD = 100;  // ms
+    private static final int VECTOR_AMPLITUDE = 100;  // can be any value; avoid transmitting floats
+    private TimerTask mTimerSendTask;
+    private Handler mHandler;
+
+    private class TimerSendTask extends TimerTask {
+
+        TimerSendTask() {
+            super();
+            if (Looper.myLooper() == null) {
+                Looper.prepare();
+            }
+        }
+
+        @Override
+        public void run() {
+            String message;
+            synchronized (mMoveVector) {
+                message = String.format("X%dY%d%s", mMoveVector.x, mMoveVector.y, newline);
+            }
+            send(message);
+        }
+    }
 
     public JoystickFragment() {
+        mHandler = new Handler();
     }
 
     /*
@@ -65,6 +98,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onStart() {
         super.onStart();
+        mTimer = new Timer();
         if(service != null)
             service.attach(this);
         else
@@ -75,6 +109,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     public void onStop() {
         if(service != null && !getActivity().isChangingConfigurations())
             service.detach();
+        mTimer.cancel();
         super.onStop();
     }
 
@@ -94,10 +129,18 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onResume() {
         super.onResume();
+        mTimerSendTask = new TimerSendTask();
+        mTimer.scheduleAtFixedRate(mTimerSendTask, 1000, SEND_UPDATE_PERIOD);  // start after one second
         if(initialStart && service !=null) {
             initialStart = false;
             getActivity().runOnUiThread(this::connect);
         }
+    }
+
+    @Override
+    public void onPause() {
+        super.onPause();
+        mTimerSendTask.cancel();
     }
 
     @Override
@@ -133,16 +176,20 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                     case MotionEvent.ACTION_MOVE: {
                         PointF newPos = new PointF(motionEvent.getRawX() - bgCircleView.getX(),
                                 motionEvent.getRawY() - bgCircleView.getY());
-                        float dx = newPos.x - mCircleInitPos.x;
-                        float dy = newPos.y - mCircleInitPos.y;
-                        final float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                        float dx_pixels = newPos.x - mCircleInitPos.x;
+                        float dy_pixels = newPos.y - mCircleInitPos.y;
+                        final float dist = (float) Math.sqrt(dx_pixels * dx_pixels + dy_pixels * dy_pixels);
                         final float radius = bgCircleView.getWidth() / 2.f;
                         if (dist > radius) {
                             final float scale = radius / dist;
-                            dx *= scale;
-                            dy *= scale;
-                            newPos.x = mCircleInitPos.x + dx;
-                            newPos.y = mCircleInitPos.y + dy;
+                            dx_pixels *= scale;
+                            dy_pixels *= scale;
+                            newPos.x = mCircleInitPos.x + dx_pixels;
+                            newPos.y = mCircleInitPos.y + dy_pixels;
+                        }
+                        synchronized (mMoveVector) {
+                            mMoveVector.x = (int) (VECTOR_AMPLITUDE * dx_pixels / radius);
+                            mMoveVector.y = (int) (VECTOR_AMPLITUDE * dy_pixels / radius);
                         }
                         view.setX(newPos.x);
                         view.setY(newPos.y);
@@ -151,6 +198,10 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                     case MotionEvent.ACTION_UP: {
                         view.setX(mCircleInitPos.x);
                         view.setY(mCircleInitPos.y);
+                        synchronized (mMoveVector) {
+                            mMoveVector.x = 0;
+                            mMoveVector.y = 0;
+                        }
                     }
                     break;
                 }
@@ -190,17 +241,37 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         socket = null;
     }
 
-    private void send(String str) {
+    private boolean send(String str) {
         if(connected != Connected.True) {
-            Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
-            return;
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    Toast.makeText(getActivity(), "not connected", Toast.LENGTH_SHORT).show();
+                }
+            });
+            return false;
         }
+        boolean success;
         try {
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    Log.d("JoystickSend", str);
+                }
+            });
             byte[] data = (str + newline).getBytes();
             socket.write(data);
-        } catch (Exception e) {
-            onSerialIoError(e);
+            success = true;
+        } catch (IOException e) {
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    onSerialIoError(e);
+                }
+            });
+            success = false;
         }
+        return success;
     }
 
     private void receive(byte[] data) {
