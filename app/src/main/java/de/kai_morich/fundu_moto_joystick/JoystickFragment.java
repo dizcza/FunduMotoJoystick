@@ -49,7 +49,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private final Point mMoveVector = new Point(0, 0);
     private Timer mTimer;
     private static final long SEND_UPDATE_PERIOD = 100;  // ms
-    private static final int VECTOR_AMPLITUDE = 100;  // can be any value; avoid transmitting floats
+    private static final int VELOCITY_AMPLITUDE = 100;  // any value less than 127
     private TimerTask mTimerSendTask;
     private Handler mHandler;
 
@@ -64,11 +64,24 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
         @Override
         public void run() {
-            String message;
+            byte[] data = new byte[2 + newline.length()];
             synchronized (mMoveVector) {
-                message = String.format("X%dY%d%s", mMoveVector.x, mMoveVector.y, newline);
+                mMoveVector.x = -13;
+                mMoveVector.y = 99;
+                data[0] = (byte) mMoveVector.x;
+                data[1] = (byte) mMoveVector.y;
             }
-            send(message);
+            for (int i = 0; i < newline.length(); i++) {
+                data[2 + i] = (byte) newline.charAt(i);
+            }
+            boolean successful = send(data);
+            final String message = String.format("X=%d Y=%d %b", data[0], data[1], successful);
+            mHandler.post(new Runnable() {
+                @Override
+                public void run() {
+                    Log.d("JSend", message);
+                }
+            });
         }
     }
 
@@ -188,8 +201,8 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                             newPos.y = mCircleInitPos.y + dy_pixels;
                         }
                         synchronized (mMoveVector) {
-                            mMoveVector.x = (int) (VECTOR_AMPLITUDE * dx_pixels / radius);
-                            mMoveVector.y = (int) (VECTOR_AMPLITUDE * dy_pixels / radius);
+                            mMoveVector.x = (int) (VELOCITY_AMPLITUDE * dx_pixels / radius);
+                            mMoveVector.y = (int) (VELOCITY_AMPLITUDE * dy_pixels / radius);
                         }
                         view.setX(newPos.x);
                         view.setY(newPos.y);
@@ -241,7 +254,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         socket = null;
     }
 
-    private boolean send(String str) {
+    private boolean send(byte[] data) {
         if(connected != Connected.True) {
             mHandler.post(new Runnable() {
                 @Override
@@ -253,13 +266,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         }
         boolean success;
         try {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    Log.d("JoystickSend", str);
-                }
-            });
-            byte[] data = (str + newline).getBytes();
             socket.write(data);
             success = true;
         } catch (IOException e) {
