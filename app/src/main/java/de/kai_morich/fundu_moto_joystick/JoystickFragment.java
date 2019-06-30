@@ -9,11 +9,13 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.graphics.PointF;
 import android.os.Bundle;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -35,6 +37,8 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private SerialService service;
     private boolean initialStart = true;
     private Connected connected = Connected.False;
+
+    private PointF mCircleInitPos;
 
     public JoystickFragment() {
     }
@@ -116,28 +120,44 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     @SuppressLint("ClickableViewAccessibility")
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
-        View view = inflater.inflate(R.layout.joystick, container, false);
-        ImageView directionCircleView = view.findViewById(R.id.circle_direction_view);
-        ImageView bgCircleView = view.findViewById(R.id.circle_background_view);
+        View joystickView = inflater.inflate(R.layout.joystick, container, false);
+        ImageView directionCircleView = joystickView.findViewById(R.id.circle_direction_view);
+        ImageView bgCircleView = joystickView.findViewById(R.id.circle_background_view);
         directionCircleView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View view, MotionEvent motionEvent) {
+                if (mCircleInitPos == null) {
+                    mCircleInitPos = new PointF(view.getX(), view.getY());
+                }
                 switch (motionEvent.getAction()) {
                     case MotionEvent.ACTION_MOVE: {
-                        directionCircleView.setX(motionEvent.getRawX() - bgCircleView.getX());
-                        directionCircleView.setY(motionEvent.getRawY() - bgCircleView.getY());
+                        PointF newPos = new PointF(motionEvent.getRawX() - bgCircleView.getX(),
+                                motionEvent.getRawY() - bgCircleView.getY());
+                        float dx = newPos.x - mCircleInitPos.x;
+                        float dy = newPos.y - mCircleInitPos.y;
+                        final float dist = (float) Math.sqrt(dx * dx + dy * dy);
+                        final float radius = bgCircleView.getWidth() / 2.f;
+                        if (dist > radius) {
+                            final float scale = radius / dist;
+                            dx *= scale;
+                            dy *= scale;
+                            newPos.x = mCircleInitPos.x + dx;
+                            newPos.y = mCircleInitPos.y + dy;
+                        }
+                        view.setX(newPos.x);
+                        view.setY(newPos.y);
                     }
                     break;
                     case MotionEvent.ACTION_UP: {
-                        directionCircleView.setX((bgCircleView.getWidth() - directionCircleView.getWidth()) / 2.f + bgCircleView.getX());
-                        directionCircleView.setY((bgCircleView.getHeight() - directionCircleView.getHeight()) / 2.f + bgCircleView.getY());
+                        view.setX(mCircleInitPos.x);
+                        view.setY(mCircleInitPos.y);
                     }
                     break;
                 }
                 return true;
             }
         });
-        return view;
+        return joystickView;
     }
 
     @Override
