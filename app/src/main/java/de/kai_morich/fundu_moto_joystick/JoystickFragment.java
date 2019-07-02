@@ -9,7 +9,6 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.graphics.Point;
 import android.graphics.PointF;
 import android.os.Bundle;
 import android.os.Handler;
@@ -18,6 +17,10 @@ import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
+import android.text.Spannable;
+import android.text.SpannableStringBuilder;
+import android.text.method.ScrollingMovementMethod;
+import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -27,6 +30,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
+import android.widget.TextView;
 import android.widget.Toast;
 
 import java.io.IOException;
@@ -35,7 +39,7 @@ import java.util.TimerTask;
 
 public class JoystickFragment extends Fragment implements ServiceConnection, SerialListener {
 
-    private enum Connected { False, Pending, True }
+    private enum Connected {False, Pending, True}
 
     private String deviceAddress;
     private String newline = "\r\n";
@@ -44,11 +48,14 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private SerialService service;
     private boolean initialStart = true;
     private Connected connected = Connected.False;
+    private TextView receiveText;
 
-    private PointF mCircleInitPos;
-    private final Point mMoveVector = new Point(0, 0);
+    private PointF mPointerInitPos;
+    private PointF mPointerCenter;
+    private final PointF mMoveVector = new PointF(0, 0);
     private Timer mTimer;
     private static final long SEND_UPDATE_PERIOD = 100;  // ms
+    private static final double ANGLE_RESOLUTION = Math.PI / 18;
     private static final int VELOCITY_AMPLITUDE = 100;  // any value less than 127
     private TimerTask mTimerSendTask;
     private Handler mHandler;
@@ -66,16 +73,17 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         public void run() {
             byte[] data = new byte[2 + newline.length()];
             synchronized (mMoveVector) {
-                mMoveVector.x = -13;
-                mMoveVector.y = 99;
-                data[0] = (byte) mMoveVector.x;
-                data[1] = (byte) mMoveVector.y;
+                double angle = Math.atan2(mMoveVector.y, mMoveVector.x);
+                double radius = Math.sqrt(mMoveVector.x * mMoveVector.x +
+                        mMoveVector.y * mMoveVector.y);
+                data[0] = (byte) (angle / ANGLE_RESOLUTION);
+                data[1] = (byte) (radius * VELOCITY_AMPLITUDE);
             }
             for (int i = 0; i < newline.length(); i++) {
                 data[2 + i] = (byte) newline.charAt(i);
             }
             boolean successful = send(data);
-            final String message = String.format("X=%d Y=%d %b", data[0], data[1], successful);
+            final String message = String.format("AngleBin=%d VelocityRadius=%d %b", data[0], data[1], successful);
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
@@ -112,7 +120,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     public void onStart() {
         super.onStart();
         mTimer = new Timer();
-        if(service != null)
+        if (service != null)
             service.attach(this);
         else
             getActivity().startService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
@@ -120,13 +128,14 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     @Override
     public void onStop() {
-        if(service != null && !getActivity().isChangingConfigurations())
+        if (service != null && !getActivity().isChangingConfigurations())
             service.detach();
         mTimer.cancel();
         super.onStop();
     }
 
-    @SuppressWarnings("deprecation") // onAttach(context) was added with API 23. onAttach(activity) works for all API versions
+    @SuppressWarnings("deprecation")
+    // onAttach(context) was added with API 23. onAttach(activity) works for all API versions
     @Override
     public void onAttach(Activity activity) {
         super.onAttach(activity);
@@ -135,7 +144,10 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     @Override
     public void onDetach() {
-        try { getActivity().unbindService(this); } catch(Exception ignored) {}
+        try {
+            getActivity().unbindService(this);
+        } catch (Exception ignored) {
+        }
         super.onDetach();
     }
 
@@ -144,7 +156,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         super.onResume();
         mTimerSendTask = new TimerSendTask();
         mTimer.scheduleAtFixedRate(mTimerSendTask, 1000, SEND_UPDATE_PERIOD);  // start after one second
-        if(initialStart && service !=null) {
+        if (initialStart && service != null) {
             initialStart = false;
             getActivity().runOnUiThread(this::connect);
         }
@@ -159,7 +171,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onServiceConnected(ComponentName name, IBinder binder) {
         service = ((SerialService.SerialBinder) binder).getService();
-        if(initialStart && isResumed()) {
+        if (initialStart && isResumed()) {
             initialStart = false;
             getActivity().runOnUiThread(this::connect);
         }
@@ -177,40 +189,46 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View joystickView = inflater.inflate(R.layout.joystick, container, false);
+        receiveText = joystickView.findViewById(R.id.terminal_log);
+        receiveText.setTextColor(getResources().getColor(R.color.colorRecieveText));
+        receiveText.setMovementMethod(ScrollingMovementMethod.getInstance());
         ImageView directionCircleView = joystickView.findViewById(R.id.circle_direction_view);
-        ImageView bgCircleView = joystickView.findViewById(R.id.circle_background_view);
+        final ImageView outerCircle = joystickView.findViewById(R.id.circle_background_view);
         directionCircleView.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View view, MotionEvent motionEvent) {
-                if (mCircleInitPos == null) {
-                    mCircleInitPos = new PointF(view.getX(), view.getY());
+                if (mPointerInitPos == null) {
+                    mPointerInitPos = new PointF(view.getX(), view.getY());
+                    mPointerCenter = new PointF(mPointerInitPos.x + view.getWidth() / 2.f,
+                            mPointerInitPos.y + view.getHeight() / 2.f);
                 }
-                switch (motionEvent.getAction()) {
+                switch (motionEvent.getAction() & MotionEvent.ACTION_MASK) {
                     case MotionEvent.ACTION_MOVE: {
-                        PointF newPos = new PointF(motionEvent.getRawX() - bgCircleView.getX(),
-                                motionEvent.getRawY() - bgCircleView.getY());
-                        float dx_pixels = newPos.x - mCircleInitPos.x;
-                        float dy_pixels = newPos.y - mCircleInitPos.y;
+                        final float outerCircleRadius = outerCircle.getWidth() / 2.f;
+                        // motionEvent.getX() returns X's position relative to inner circle upper left corner
+                        PointF newPos = new PointF(view.getX() + motionEvent.getX(),
+                                view.getY() + motionEvent.getY());
+                        float dx_pixels = newPos.x - mPointerCenter.x;
+                        float dy_pixels = newPos.y - mPointerCenter.y;
                         final float dist = (float) Math.sqrt(dx_pixels * dx_pixels + dy_pixels * dy_pixels);
-                        final float radius = bgCircleView.getWidth() / 2.f;
-                        if (dist > radius) {
-                            final float scale = radius / dist;
+                        if (dist > outerCircleRadius) {
+                            final float scale = outerCircleRadius / dist;
                             dx_pixels *= scale;
                             dy_pixels *= scale;
-                            newPos.x = mCircleInitPos.x + dx_pixels;
-                            newPos.y = mCircleInitPos.y + dy_pixels;
+                            newPos.x = mPointerCenter.x + dx_pixels;
+                            newPos.y = mPointerCenter.y + dy_pixels;
                         }
                         synchronized (mMoveVector) {
-                            mMoveVector.x = (int) (VELOCITY_AMPLITUDE * dx_pixels / radius);
-                            mMoveVector.y = (int) (VELOCITY_AMPLITUDE * dy_pixels / radius);
+                            mMoveVector.x = dx_pixels / outerCircleRadius;
+                            mMoveVector.y = -dy_pixels / outerCircleRadius;  // invert Y axis
                         }
-                        view.setX(newPos.x);
-                        view.setY(newPos.y);
+                        view.setX(newPos.x - view.getWidth() / 2.f);
+                        view.setY(newPos.y - view.getHeight() / 2.f);
                     }
                     break;
                     case MotionEvent.ACTION_UP: {
-                        view.setX(mCircleInitPos.x);
-                        view.setY(mCircleInitPos.y);
+                        view.setX(mPointerInitPos.x);
+                        view.setY(mPointerInitPos.y);
                         synchronized (mMoveVector) {
                             mMoveVector.x = 0;
                             mMoveVector.y = 0;
@@ -251,11 +269,10 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         connected = Connected.False;
         service.disconnect();
         socket.disconnect();
-        socket = null;
     }
 
     private boolean send(byte[] data) {
-        if(connected != Connected.True) {
+        if (connected != Connected.True) {
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
@@ -281,14 +298,23 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void receive(byte[] data) {
+        receiveText.append(new String(data));
     }
 
     private void status(String str) {
+        SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
+        spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)),
+                0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
+        receiveText.append(spn);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        if (item.getItemId() == R.id.newline) {
+        final int idSelected = item.getItemId();
+        if (idSelected == R.id.clear) {
+            receiveText.setText("");
+            return true;
+        } else if (idSelected == R.id.newline) {
             String[] newlineNames = getResources().getStringArray(R.array.newline_names);
             String[] newlineValues = getResources().getStringArray(R.array.newline_values);
             int pos = java.util.Arrays.asList(newlineValues).indexOf(newline);
