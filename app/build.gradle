@@ -4,7 +4,7 @@ android {
     compileSdkVersion 28
     defaultConfig {
         targetSdkVersion 28
-        minSdkVersion 18
+        minSdkVersion 19
         vectorDrawables.useSupportLibrary true
 
         applicationId "de.kai_morich.fundu_moto_joysctick"
