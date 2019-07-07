@@ -40,9 +40,6 @@ import android.widget.TextView;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
-import java.text.SimpleDateFormat;
-import java.util.Date;
-import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -72,6 +69,9 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     private class TimerSendTask extends TimerTask {
 
+        private final int MOTOR_COMMAND_LENGTH = 3;
+        private final int SERVO_COMMAND_LENGTH = 2;
+
         TimerSendTask() {
             super();
             if (Looper.myLooper() == null) {
@@ -79,26 +79,61 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             }
         }
 
-        @Override
-        public void run() {
+        /* Constructs motor command in the M<angle><radius> format. */
+        private byte[] getMotorCommand() {
+            byte[] command = new byte[MOTOR_COMMAND_LENGTH + newline.length()];
             float x, y;
             synchronized (mMoveVector) {
                 x = mMoveVector.x;
                 y = mMoveVector.y;
             }
-            // construct command in the format "M<angle><radius>"
-            // 'M' stands for MOVE
-            byte[] data = new byte[3 + newline.length()];
             double angle = Math.atan2(y, x);
             double radius = Math.sqrt(x * x + y * y);
-            data[0] = (byte) 'M';
-            data[1] = (byte) (angle / ANGLE_RESOLUTION);
-            data[2] = (byte) (radius * VELOCITY_AMPLITUDE);
+            command[0] = (byte) 'M';
+            command[1] = (byte) (angle / ANGLE_RESOLUTION);
+            command[2] = (byte) (radius * VELOCITY_AMPLITUDE);
+            insertNewLine(command, MOTOR_COMMAND_LENGTH);
+            return command;
+        }
+
+        private void insertNewLine(byte[] command, int offset) {
             for (int i = 0; i < newline.length(); i++) {
-                data[3 + i] = (byte) newline.charAt(i);
+                command[offset + i] = (byte) newline.charAt(i);
             }
-            boolean successful = send(data);
-            final String message = String.format("AngleBin=%d VelocityRadius=%d %b", data[1], data[2], successful);
+        }
+
+        /* Constructs servo command in the S<angle> format. */
+        private byte[] getServoCommand() {
+            byte[] command = new byte[SERVO_COMMAND_LENGTH + newline.length()];
+            command[0] = (byte) 'S';
+            command[1] = (byte) 50;
+            insertNewLine(command, SERVO_COMMAND_LENGTH);
+            return command;
+        }
+
+        private byte[] concatCommands(byte[]... commands) {
+            int length = 0;
+            for (byte[] command : commands) {
+                length += command.length;
+            }
+            byte[] concatenated = new byte[length];
+            int concatIndex = 0;
+            for (byte[] command : commands) {
+                for (byte b : command) {
+                    concatenated[concatIndex++] = b;
+                }
+            }
+            return concatenated;
+        }
+
+        @Override
+        public void run() {
+            byte[] motorCommand = getMotorCommand();
+            byte[] servoCommand = getServoCommand();
+            byte[] command = concatCommands(motorCommand, servoCommand);
+            boolean successful = send(command);
+            final String message = String.format("[M]angle=%d;radius=%d [S]angle=%d success=%b",
+                    motorCommand[1], motorCommand[2], servoCommand[1], successful);
             mHandler.post(new Runnable() {
                 @Override
                 public void run() {
@@ -319,12 +354,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private boolean logBluetooth(byte[] data) {
-        Date now = new Date();
-        long timestamp = now.getTime();
-        SimpleDateFormat sdf = new SimpleDateFormat("[mm:ss.SSSS] ", Locale.US);
-        String dateStr = sdf.format(timestamp);
-        String s = dateStr + new String(data);
-//        data = s.getBytes();
         boolean success;
         try {
             FileOutputStream fileOutput = new FileOutputStream(mLogsFile, true);
