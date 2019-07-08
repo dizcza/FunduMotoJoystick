@@ -22,10 +22,6 @@ import android.support.annotation.Nullable;
 import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
 import android.support.v4.content.ContextCompat;
-import android.text.Spannable;
-import android.text.SpannableStringBuilder;
-import android.text.method.ScrollingMovementMethod;
-import android.text.style.ForegroundColorSpan;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -36,6 +32,7 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
 import android.widget.TextView;
+import android.widget.ToggleButton;
 
 import java.io.File;
 import java.io.FileOutputStream;
@@ -54,7 +51,8 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private SerialService service;
     private boolean initialStart = true;
     private Connected connected = Connected.False;
-    private TextView receiveText;
+    private TextView mConnectionStatusText;
+    private ToggleButton mConnectButton;
 
     private PointF mPointerInitPos;
     private PointF mPointerCenter;
@@ -65,7 +63,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private static final int VELOCITY_AMPLITUDE = 100;  // any value less than 127
     private TimerTask mTimerSendTask;
     private final Handler mHandler;
-    private final File mLogsFile;
+    private File mLogsFile;
 
     private class TimerSendTask extends TimerTask {
 
@@ -134,18 +132,12 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             boolean successful = send(command);
             final String message = String.format("[M]angle=%d;radius=%d [S]angle=%d success=%b",
                     motorCommand[1], motorCommand[2], servoCommand[1], successful);
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    Log.d("JSend", message);
-                }
-            });
+            mHandler.post(() -> Log.d("JSend", message));
         }
     }
 
     public JoystickFragment() {
         mHandler = new Handler();
-        mLogsFile = getLogsFile();
     }
 
     /*
@@ -157,6 +149,8 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         setHasOptionsMenu(true);
         setRetainInstance(true);
         deviceAddress = getArguments().getString("device");
+        File privateDir = getContext().getExternalFilesDir(null);
+        mLogsFile = new File(privateDir, LogsFragment.LOGS_FILENAME);
     }
 
     @Override
@@ -175,7 +169,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             service.attach(this);
         else
             getActivity().startService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
-        requestsStoragePermission();
     }
 
     @Override
@@ -208,10 +201,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         super.onResume();
         mTimerSendTask = new TimerSendTask();
         mTimer.scheduleAtFixedRate(mTimerSendTask, 1000, SEND_UPDATE_PERIOD);  // start after one second
-        if (initialStart && service != null) {
-            initialStart = false;
-            getActivity().runOnUiThread(this::connect);
-        }
     }
 
     @Override
@@ -242,9 +231,18 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View joystickView = inflater.inflate(R.layout.joystick, container, false);
-        receiveText = joystickView.findViewById(R.id.terminal_log);
-        receiveText.setTextColor(getResources().getColor(R.color.colorRecieveText));
-        receiveText.setMovementMethod(ScrollingMovementMethod.getInstance());
+        mConnectionStatusText = joystickView.findViewById(R.id.bluetooth_connection_status);
+        mConnectButton = joystickView.findViewById(R.id.bluetooth_connection_toggle);
+        mConnectButton.setOnClickListener(new View.OnClickListener() {
+            @Override
+            public void onClick(View v) {
+                if (mConnectButton.isChecked()) {
+                    connect();
+                } else {
+                    disconnect();
+                }
+            }
+        });
         ImageView directionCircleView = joystickView.findViewById(R.id.circle_direction_view);
         final ImageView outerCircle = joystickView.findViewById(R.id.circle_background_view);
         directionCircleView.setOnTouchListener(new View.OnTouchListener() {
@@ -297,7 +295,11 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
-        inflater.inflate(R.menu.menu_terminal, menu);
+        inflater.inflate(R.menu.menu_joystick, menu);
+    }
+
+    private String getResourceString(int resId) {
+        return getResources().getString(resId) + '\n';
     }
 
     /*
@@ -308,7 +310,11 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
             BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceAddress);
             String deviceName = device.getName() != null ? device.getName() : device.getAddress();
-            status("connecting...");
+            logBluetooth(getResourceString(R.string.connecting));
+            mConnectButton.setChecked(true);
+            mConnectButton.setEnabled(false);
+            mConnectionStatusText.setTextColor(getResources().getColor(R.color.pending));
+            mConnectionStatusText.setText(R.string.connecting);
             connected = Connected.Pending;
             socket = new SerialSocket();
             service.connect(this, "Connected to " + deviceName);
@@ -322,11 +328,15 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         connected = Connected.False;
         service.disconnect();
         socket.disconnect();
+        logBluetooth(getResourceString(R.string.disconnected));
+        mConnectButton.setChecked(false);
+        mConnectButton.setEnabled(true);
+        mConnectionStatusText.setTextColor(getResources().getColor(R.color.failed));
+        mConnectionStatusText.setText(R.string.disconnected);
     }
 
     private boolean send(byte[] data) {
         if (connected != Connected.True) {
-            // TODO notify user via separate BL status icon
             return false;
         }
         boolean success;
@@ -334,53 +344,30 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             socket.write(data);
             success = true;
         } catch (IOException e) {
-            mHandler.post(new Runnable() {
-                @Override
-                public void run() {
-                    onSerialIoError(e);
-                }
-            });
+            mHandler.post(() -> onSerialIoError(e));
             success = false;
         }
         return success;
     }
 
     private void receive(byte[] data) {
-        receiveText.append(new String(data));
-        if (!isExternalStorageWritable()) {
-            return;
-        }
-        logBluetooth(data);
+        logBluetooth(new String(data));
     }
 
-    private boolean logBluetooth(byte[] data) {
-        boolean success;
+    private void logBluetooth(String message) {
         try {
             FileOutputStream fileOutput = new FileOutputStream(mLogsFile, true);
-            fileOutput.write(data);
+            fileOutput.write(message.getBytes());
             fileOutput.close();
-            success = true;
         } catch (IOException e) {
             e.printStackTrace();
-            success = false;
         }
-        return success;
-    }
-
-    private void status(String str) {
-        SpannableStringBuilder spn = new SpannableStringBuilder(str + '\n');
-        spn.setSpan(new ForegroundColorSpan(getResources().getColor(R.color.colorStatusText)),
-                0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        receiveText.append(spn);
     }
 
     @Override
     public boolean onOptionsItemSelected(MenuItem item) {
         final int idSelected = item.getItemId();
-        if (idSelected == R.id.clear) {
-            receiveText.setText("");
-            return true;
-        } else if (idSelected == R.id.newline) {
+        if (idSelected == R.id.newline) {
             String[] newlineNames = getResources().getStringArray(R.array.newline_names);
             String[] newlineValues = getResources().getStringArray(R.array.newline_values);
             int pos = java.util.Arrays.asList(newlineValues).indexOf(newline);
@@ -391,6 +378,10 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                 dialog.dismiss();
             });
             builder.create().show();
+            return true;
+        } else if (idSelected == R.id.show_logs) {
+            Fragment fragment = new LogsFragment();
+            getFragmentManager().beginTransaction().replace(R.id.fragment, fragment).addToBackStack(null).commit();
             return true;
         } else {
             return super.onOptionsItemSelected(item);
@@ -403,13 +394,16 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
      */
     @Override
     public void onSerialConnect() {
-        status("connected");
+        logBluetooth(getResourceString(R.string.connected));
+        mConnectButton.setEnabled(true);
+        mConnectionStatusText.setTextColor(getResources().getColor(R.color.success));
+        mConnectionStatusText.setText(R.string.connected);
         connected = Connected.True;
     }
 
     @Override
     public void onSerialConnectError(Exception e) {
-        status("connection failed: " + e.getMessage());
+        logBluetooth("Connection failed: " + e.getMessage() + '\n');
         disconnect();
     }
 
@@ -420,28 +414,8 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     @Override
     public void onSerialIoError(Exception e) {
-        status("connection lost: " + e.getMessage());
+        logBluetooth("Connection lost: " + e.getMessage() + '\n');
         disconnect();
-    }
-
-    /* Checks if external storage is available for read and write */
-    public boolean isExternalStorageWritable() {
-        return Environment.getExternalStorageState().equals(Environment.MEDIA_MOUNTED);
-    }
-
-    public static File getLogsFile() {
-        return new File(Environment.getExternalStoragePublicDirectory(
-                Environment.DIRECTORY_DOCUMENTS), "FunduMoto_Logs.txt");
-    }
-
-    public void requestsStoragePermission() {
-        if (ContextCompat.checkSelfPermission(getContext(),
-                Manifest.permission.WRITE_EXTERNAL_STORAGE)
-                != PackageManager.PERMISSION_GRANTED) {
-            ActivityCompat.requestPermissions(getActivity(),
-                    new String[]{Manifest.permission.WRITE_EXTERNAL_STORAGE},
-                    MainActivity.PERMISSION_WRITE_STORAGE_REQUEST_CODE);
-        }
     }
 
 }

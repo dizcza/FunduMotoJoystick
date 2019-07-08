@@ -110,7 +110,7 @@ public class DevicesFragment extends ListFragment {
         args.putString("device", device.getAddress());
         Fragment fragment = new JoystickFragment();
         fragment.setArguments(args);
-        getFragmentManager().beginTransaction().replace(R.id.fragment, fragment, "terminal").addToBackStack(null).commit();
+        getFragmentManager().beginTransaction().replace(R.id.fragment, fragment).addToBackStack(null).commit();
     }
 
     /**
