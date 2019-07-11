@@ -1,11 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="colorPrimary">#d84315</color>
-    <color name="colorPrimaryDark">#bf360c</color>
-    <color name="colorAccent">#ff6e40</color>
+    <color name="colorPrimary">#3F51B5</color>
+    <color name="colorPrimaryDark">#303F9F</color>
+    <color name="colorAccent">#FF4081</color>
 
     <color name="pending">#FFDB58</color>
     <color name="success">#00FF00</color>
-    <color name="failed">#dd0000</color>
+    <color name="failed">#DD0000</color>
+
+    <color name="sliderBack">#BBBBBB</color>
+    <array name="progressGradientColors">
+        <item>#b5fff6</item>
+        <item>#00ffdf</item>
+        <item>#00bfa4</item>
+        <item>#007c6a</item>
+    </array>
 
 </resources>

@@ -1,6 +1,5 @@
 package de.kai_morich.fundu_moto_joystick;
 
-import android.Manifest;
 import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.app.AlertDialog;
@@ -10,18 +9,14 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
-import android.content.pm.PackageManager;
 import android.graphics.PointF;
 import android.os.Bundle;
-import android.os.Environment;
 import android.os.Handler;
 import android.os.IBinder;
 import android.os.Looper;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
-import android.support.v4.app.ActivityCompat;
 import android.support.v4.app.Fragment;
-import android.support.v4.content.ContextCompat;
 import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
@@ -34,9 +29,14 @@ import android.widget.ImageView;
 import android.widget.TextView;
 import android.widget.ToggleButton;
 
+import com.marcinmoskala.arcseekbar.ArcSeekBar;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
+import java.text.SimpleDateFormat;
+import java.util.Date;
+import java.util.Locale;
 import java.util.Timer;
 import java.util.TimerTask;
 
@@ -58,12 +58,13 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private PointF mPointerCenter;
     private final PointF mMoveVector = new PointF(0, 0);
     private Timer mTimer;
-    private static final long SEND_UPDATE_PERIOD = 500;  // ms
+    private static final long SEND_UPDATE_PERIOD = 50;  // ms
     private static final double ANGLE_RESOLUTION = Math.PI / 18;
     private static final int VELOCITY_AMPLITUDE = 100;  // any value less than 127
     private TimerTask mTimerSendTask;
     private final Handler mHandler;
-    private File mLogsFile;
+    private FunduLogs mFunduLogs;
+    private ArcSeekBar mServoSlider;
 
     private class TimerSendTask extends TimerTask {
 
@@ -94,17 +95,18 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             return command;
         }
 
-        private void insertNewLine(byte[] command, int offset) {
-            for (int i = 0; i < newline.length(); i++) {
-                command[offset + i] = (byte) newline.charAt(i);
-            }
+
+        private byte getServoAngle() {
+            float progress = mServoSlider.getProgress() / (float) mServoSlider.getMaxProgress();
+            byte angle = (byte) (progress * 180 - 90);
+            return angle;
         }
 
         /* Constructs servo command in the S<angle> format. */
         private byte[] getServoCommand() {
             byte[] command = new byte[SERVO_COMMAND_LENGTH + newline.length()];
             command[0] = (byte) 'S';
-            command[1] = (byte) 50;
+            command[1] = getServoAngle();
             insertNewLine(command, SERVO_COMMAND_LENGTH);
             return command;
         }
@@ -136,6 +138,13 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 
+    private void insertNewLine(byte[] command, int offset) {
+        for (int i = 0; i < newline.length(); i++) {
+            command[offset + i] = (byte) newline.charAt(i);
+        }
+    }
+
+
     public JoystickFragment() {
         mHandler = new Handler();
     }
@@ -149,8 +158,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         setHasOptionsMenu(true);
         setRetainInstance(true);
         deviceAddress = getArguments().getString("device");
-        File privateDir = getContext().getExternalFilesDir(null);
-        mLogsFile = new File(privateDir, LogsFragment.LOGS_FILENAME);
+        mFunduLogs = new FunduLogs(getContext());
     }
 
     @Override
@@ -231,6 +239,23 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View joystickView = inflater.inflate(R.layout.joystick, container, false);
+
+        mServoSlider = joystickView.findViewById(R.id.servo_slider);
+        int[] intArray = getResources().getIntArray(R.array.progressGradientColors);
+        mServoSlider.setProgressGradient(intArray);
+//        mServoSlider.setOnProgressChangedListener(new ProgressListener() {
+//            @Override
+//            public void invoke(int progress) {
+//                float progressNormalized = progress / (float) mServoSlider.getMaxProgress();
+//                byte angle = (byte) (progressNormalized * 180 - 90);
+//                byte[] command = new byte[2 + newline.length()];
+//                command[0] = (byte) 'S';
+//                command[1] = angle;
+//                insertNewLine(command, 2);
+//                send(command);
+//            }
+//        });
+
         mConnectionStatusText = joystickView.findViewById(R.id.bluetooth_connection_status);
         mConnectButton = joystickView.findViewById(R.id.bluetooth_connection_toggle);
         mConnectButton.setOnClickListener(new View.OnClickListener() {
@@ -310,7 +335,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
             BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceAddress);
             String deviceName = device.getName() != null ? device.getName() : device.getAddress();
-            logBluetooth(getResourceString(R.string.connecting));
+            mFunduLogs.appendLogs(getResourceString(R.string.connecting));
             mConnectButton.setChecked(true);
             mConnectButton.setEnabled(false);
             mConnectionStatusText.setTextColor(getResources().getColor(R.color.pending));
@@ -328,7 +353,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         connected = Connected.False;
         service.disconnect();
         socket.disconnect();
-        logBluetooth(getResourceString(R.string.disconnected));
+        mFunduLogs.appendLogs(getResourceString(R.string.disconnected));
         mConnectButton.setChecked(false);
         mConnectButton.setEnabled(true);
         mConnectionStatusText.setTextColor(getResources().getColor(R.color.failed));
@@ -351,17 +376,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void receive(byte[] data) {
-        logBluetooth(new String(data));
-    }
-
-    private void logBluetooth(String message) {
-        try {
-            FileOutputStream fileOutput = new FileOutputStream(mLogsFile, true);
-            fileOutput.write(message.getBytes());
-            fileOutput.close();
-        } catch (IOException e) {
-            e.printStackTrace();
-        }
+        mFunduLogs.appendLogs(new String(data));
     }
 
     @Override
@@ -394,7 +409,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
      */
     @Override
     public void onSerialConnect() {
-        logBluetooth(getResourceString(R.string.connected));
+        mFunduLogs.appendLogs(getResourceString(R.string.connected));
         mConnectButton.setEnabled(true);
         mConnectionStatusText.setTextColor(getResources().getColor(R.color.success));
         mConnectionStatusText.setText(R.string.connected);
@@ -403,7 +418,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     @Override
     public void onSerialConnectError(Exception e) {
-        logBluetooth("Connection failed: " + e.getMessage() + '\n');
+        mFunduLogs.appendLogs("Connection failed: " + e.getMessage() + '\n');
         disconnect();
     }
 
@@ -414,7 +429,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     @Override
     public void onSerialIoError(Exception e) {
-        logBluetooth("Connection lost: " + e.getMessage() + '\n');
+        mFunduLogs.appendLogs("Connection lost: " + e.getMessage() + '\n');
         disconnect();
     }
 
