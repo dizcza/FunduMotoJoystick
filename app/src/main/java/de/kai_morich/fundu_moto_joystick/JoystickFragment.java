@@ -189,7 +189,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onResume() {
         super.onResume();
-        mFunduCommand = new FunduCommand();
+        updateConnectionStatus();
     }
 
     @Override
@@ -316,6 +316,29 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         return getResources().getString(resId) + '\n';
     }
 
+    private void updateConnectionStatus() {
+        switch (connected) {
+            case False:
+                mConnectButton.setChecked(false);
+                mConnectButton.setEnabled(true);
+                mConnectionStatusText.setTextColor(getResources().getColor(R.color.failed));
+                mConnectionStatusText.setText(R.string.disconnected);
+                break;
+            case Pending:
+                mConnectButton.setChecked(true);
+                mConnectButton.setEnabled(false);
+                mConnectionStatusText.setTextColor(getResources().getColor(R.color.pending));
+                mConnectionStatusText.setText(R.string.connecting);
+                break;
+            case True:
+                mConnectButton.setChecked(true);
+                mConnectButton.setEnabled(true);
+                mConnectionStatusText.setTextColor(getResources().getColor(R.color.success));
+                mConnectionStatusText.setText(R.string.connected);
+                break;
+        }
+    }
+
     /*
      * Serial + UI
      */
@@ -325,11 +348,8 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceAddress);
             String deviceName = device.getName() != null ? device.getName() : device.getAddress();
             mFunduLogs.appendLogs(getResourceString(R.string.connecting));
-            mConnectButton.setChecked(true);
-            mConnectButton.setEnabled(false);
-            mConnectionStatusText.setTextColor(getResources().getColor(R.color.pending));
-            mConnectionStatusText.setText(R.string.connecting);
             connected = Connected.Pending;
+            updateConnectionStatus();
             socket = new SerialSocket();
             service.connect(this, "Connected to " + deviceName);
             socket.connect(getContext(), service, device);
@@ -343,10 +363,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         service.disconnect();
         socket.disconnect();
         mFunduLogs.appendLogs(getResourceString(R.string.disconnected));
-        mConnectButton.setChecked(false);
-        mConnectButton.setEnabled(true);
-        mConnectionStatusText.setTextColor(getResources().getColor(R.color.failed));
-        mConnectionStatusText.setText(R.string.disconnected);
+        updateConnectionStatus();
     }
 
     private boolean send(byte[] data) {
@@ -399,10 +416,8 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onSerialConnect() {
         mFunduLogs.appendLogs(getResourceString(R.string.connected));
-        mConnectButton.setEnabled(true);
-        mConnectionStatusText.setTextColor(getResources().getColor(R.color.success));
-        mConnectionStatusText.setText(R.string.connected);
         connected = Connected.True;
+        updateConnectionStatus();
     }
 
     @Override
