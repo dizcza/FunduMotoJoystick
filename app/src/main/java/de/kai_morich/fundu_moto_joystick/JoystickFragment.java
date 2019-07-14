@@ -50,13 +50,15 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private PointF mPointerInitPos;
     private PointF mPointerCenter;
     private final PointF mMoveVector = new PointF(0, 0);
-    private static final long SEND_UPDATE_PERIOD = 50;  // ms
     private static final double ANGLE_RESOLUTION = Math.PI / 18;
     private static final int VELOCITY_AMPLITUDE = 100;  // any value less than 127
     private FunduCommand mFunduCommand;
     private final Handler mHandler;
     private FunduLogs mFunduLogs;
     private ArcSeekBar mServoSlider;
+    private SonarView mSonarView;
+    private CommandParser mCommandParser;
+
 
     private class FunduCommand {
 
@@ -219,6 +221,9 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View joystickView = inflater.inflate(R.layout.joystick, container, false);
 
+        mSonarView = joystickView.findViewById(R.id.sonar_view);
+        mCommandParser = new CommandParser(mSonarView);
+
         mServoSlider = joystickView.findViewById(R.id.servo_slider);
         int[] intArray = getResources().getIntArray(R.array.progressGradientColors);
         mServoSlider.setProgressGradient(intArray);
@@ -229,7 +234,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                 byte angle = (byte) (progressNormalized * 180 - 90);
                 byte[] command = new byte[2 + newline.length()];
                 command[0] = (byte) 'S';
-                command[1] = angle;
+                command[1] = (byte) -angle;
                 mFunduCommand.insertNewLine(command, 2);
                 boolean successful = send(command);
                 final String message = String.format("[S]angle=%d success=%b",
@@ -261,7 +266,11 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                             mPointerInitPos.y + view.getHeight() / 2.f);
                 }
                 switch (motionEvent.getAction() & MotionEvent.ACTION_MASK) {
-                    case MotionEvent.ACTION_MOVE: {
+                    case MotionEvent.ACTION_DOWN:
+                        mSonarView.clear();
+                        break;
+
+                    case MotionEvent.ACTION_MOVE:
                         final float outerCircleRadius = outerCircle.getWidth() / 2.f;
                         // motionEvent.getX() returns X's position relative to inner circle upper left corner
                         PointF newPos = new PointF(view.getX() + motionEvent.getX(),
@@ -282,17 +291,16 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                         }
                         view.setX(newPos.x - view.getWidth() / 2.f);
                         view.setY(newPos.y - view.getHeight() / 2.f);
-                    }
-                    break;
-                    case MotionEvent.ACTION_UP: {
+                        break;
+
+                    case MotionEvent.ACTION_UP:
                         view.setX(mPointerInitPos.x);
                         view.setY(mPointerInitPos.y);
                         synchronized (mMoveVector) {
                             mMoveVector.x = 0;
                             mMoveVector.y = 0;
                         }
-                    }
-                    break;
+                        break;
                 }
 
                 byte[] motorCommand = mFunduCommand.getMotorCommand();
@@ -382,6 +390,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void receive(byte[] data) {
+        mCommandParser.receive(data);
         mFunduLogs.appendLogs(new String(data));
     }
 

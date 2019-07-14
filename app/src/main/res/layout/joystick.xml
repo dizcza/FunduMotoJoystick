@@ -34,11 +34,20 @@
         android:layout_below="@id/bluetooth_connection"
         android:layout_marginTop="50dp">
 
+        <de.kai_morich.fundu_moto_joystick.SonarView
+            android:id="@+id/sonar_view"
+            android:layout_width="300dp"
+            android:layout_height="100dp"
+            android:background="@color/sonar_view_background"
+            android:layout_centerHorizontal="true" />
+
         <com.marcinmoskala.arcseekbar.ArcSeekBar
             android:id="@+id/servo_slider"
             android:layout_width="300dp"
-            android:layout_height="100dp"
+            android:layout_height="70dp"
             android:layout_centerHorizontal="true"
+            android:layout_below="@+id/sonar_view"
+            android:layout_marginTop="10dp"
             app:thumb="@drawable/slider_thumb"
             app:progressBackgroundColor="@color/sliderBack"
             app:progressBackgroundWidth="20dp"
@@ -49,15 +58,14 @@
             android:id="@+id/keypad_box"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_below="@+id/servo_slider">
+            android:layout_below="@+id/servo_slider"
+            android:layout_centerHorizontal="true">
 
             <ImageView
                 android:id="@+id/circle_background_view"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:scaleType="fitXY"
                 android:layout_centerInParent="true"
-                android:layout_margin="45dp"
                 android:src="@drawable/circle_background"/>
 
             <ImageView

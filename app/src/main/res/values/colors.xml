@@ -16,4 +16,6 @@
         <item>#007c6a</item>
     </array>
 
+    <color name="sonar_view_background">#FFFFFF</color>
+
 </resources>
