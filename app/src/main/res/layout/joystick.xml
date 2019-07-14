@@ -1,9 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    xmlns:app="http://schemas.android.com/apk/res-auto"
-    android:layout_weight="1.0">
+    android:orientation="vertical">
 
     <LinearLayout
         android:id="@+id/bluetooth_connection"
@@ -22,83 +22,77 @@
             android:id="@+id/bluetooth_connection_status"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
             android:layout_marginStart="10dp"
-            android:hint="Connection status" />
+            android:hint="Connection status"
+            android:textAppearance="@style/TextAppearance.AppCompat.Medium" />
     </LinearLayout>
 
-    <RelativeLayout
+    <LinearLayout
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
-        android:layout_centerHorizontal="true"
-        android:layout_below="@id/bluetooth_connection"
-        android:layout_marginTop="50dp">
+        android:layout_gravity="center_horizontal"
+        android:layout_marginTop="50dp"
+        android:orientation="vertical">
 
         <de.kai_morich.fundu_moto_joystick.SonarView
             android:id="@+id/sonar_view"
             android:layout_width="300dp"
             android:layout_height="100dp"
-            android:background="@color/sonar_view_background"
-            android:layout_centerHorizontal="true" />
+            android:layout_gravity="center_horizontal"
+            android:background="@color/sonar_view_background" />
 
         <com.marcinmoskala.arcseekbar.ArcSeekBar
             android:id="@+id/servo_slider"
             android:layout_width="300dp"
             android:layout_height="70dp"
-            android:layout_centerHorizontal="true"
-            android:layout_below="@+id/sonar_view"
+            android:layout_gravity="center_horizontal"
             android:layout_marginTop="10dp"
-            app:thumb="@drawable/slider_thumb"
+            app:progress="50"
             app:progressBackgroundColor="@color/sliderBack"
             app:progressBackgroundWidth="20dp"
             app:progressWidth="20dp"
-            app:progress="50"/>
+            app:thumb="@drawable/slider_thumb" />
 
         <RelativeLayout
             android:id="@+id/keypad_box"
-            android:layout_width="300dp"
-            android:layout_height="300dp"
-            android:layout_below="@+id/servo_slider"
-            android:layout_centerHorizontal="true">
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center_horizontal">
 
             <ImageView
                 android:id="@+id/circle_background_view"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:layout_centerInParent="true"
+                android:layout_centerHorizontal="true"
                 android:src="@drawable/circle_background" />
 
             <ImageView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_alignTop="@+id/circle_background_view"
                 android:layout_centerHorizontal="true"
-                android:layout_alignParentTop="true"
-                android:layout_marginTop="@dimen/arrow_margin"
-                app:srcCompat="@drawable/ic_keyboard_arrow_up"/>
+                app:srcCompat="@drawable/ic_keyboard_arrow_up" />
 
             <ImageView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_alignBottom="@+id/circle_background_view"
                 android:layout_centerHorizontal="true"
-                android:layout_alignParentBottom="true"
-                android:layout_marginBottom="@dimen/arrow_margin"
-                app:srcCompat="@drawable/ic_keyboard_arrow_down"/>
+                app:srcCompat="@drawable/ic_keyboard_arrow_down" />
 
             <ImageView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_alignStart="@+id/circle_background_view"
                 android:layout_centerVertical="true"
-                android:layout_alignParentStart="true"
-                android:layout_marginStart="@dimen/arrow_margin"
-                app:srcCompat="@drawable/ic_keyboard_arrow_left"/>
+                app:srcCompat="@drawable/ic_keyboard_arrow_left" />
 
             <ImageView
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
+                android:layout_alignEnd="@+id/circle_background_view"
                 android:layout_centerVertical="true"
-                android:layout_alignParentEnd="true"
-                android:layout_marginEnd="@dimen/arrow_margin"
-                app:srcCompat="@drawable/ic_keyboard_arrow_right"/>
+                app:srcCompat="@drawable/ic_keyboard_arrow_right" />
 
             <ImageView
                 android:id="@+id/circle_direction_view"
@@ -108,7 +102,7 @@
                 android:src="@drawable/circle_direction" />
         </RelativeLayout>
 
-    </RelativeLayout>
+    </LinearLayout>
 
 
-</RelativeLayout>
+</LinearLayout>
