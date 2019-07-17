@@ -1,60 +1,49 @@
 package de.kai_morich.fundu_moto_joystick;
 
-import java.util.ArrayList;
-import java.util.List;
-
 public class CommandParser {
     private static final float SCALE_SONAR_DIST = 3.0f;
 
-    private final List<Byte> mCommand;
-    private int mDoNotSkip = 0;
+    private final StringBuilder mCommand;
     private final SonarView mSonarView;
 
     public CommandParser(SonarView sonarView) {
         mSonarView = sonarView;
-        mCommand = new ArrayList<>();
+        mCommand = new StringBuilder();
     }
 
     public void receive(byte[] data) {
         for (byte item : data) {
-            if (mDoNotSkip > 0) {
-                mCommand.add(item);
-                mDoNotSkip--;
-                continue;
-            }
             switch (item) {
-                case 'S':
-                    // Servo + Sonar
-                    mCommand.add(item);
-                    mDoNotSkip = 2;
-                    break;
                 case '\r':
                     // ignore \r
                     break;
                 case '\n':
                     process();
-                    mCommand.clear();
+                    mCommand.setLength(0);
                     break;
                 default:
-                    // RX failure or corrupted data. Skip.
-                    mDoNotSkip = 0;
-                    mCommand.clear();
+                    mCommand.append((char) item);
                     break;
             }
         }
     }
 
     private void process() {
-        if (mCommand.isEmpty()) {
+        if (mCommand.length() == 0) {
             return;
         }
-        switch (mCommand.get(0)) {
+        switch (mCommand.charAt(0)) {
             case 'S':
-                // Servo + Sonar
-                byte servoAngle = mCommand.get(1);
-                byte sonarDist = mCommand.get(2);
+                //  S<servo angle:3d>,<sonar dist:.2f>
+                // angle in [-90, 90]
+                // dist in [0.00, 1.00]
+                if (mCommand.charAt(4) != ',') {
+                    // invalid packet
+                    return;
+                }
+                int servoAngle = Integer.parseInt(mCommand.substring(1, 4));
                 float servoAngleNorm = (servoAngle + 90) / 180.f;
-                float sonarDistNorm = (sonarDist & 0xFF) / (float) 0xFF;
+                float sonarDistNorm = Float.parseFloat(mCommand.substring(5));
                 sonarDistNorm *= SCALE_SONAR_DIST;
                 if (sonarDistNorm > 1.0f) {
                     sonarDistNorm = 1.0f;
