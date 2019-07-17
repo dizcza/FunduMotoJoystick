@@ -52,7 +52,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private PointF mPointerCenter;
     private static final String TAG = JoystickFragment.class.getName();
     private final Handler mHandler;
-    private FunduLogs mFunduLogs;
+    private LogsFragment mLogsFragment;
     private ArcSeekBar mServoSlider;
     private SonarView mSonarView;
     private CommandParser mCommandParser;
@@ -71,7 +71,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         setHasOptionsMenu(true);
         setRetainInstance(true);
         deviceAddress = getArguments().getString("device");
-        mFunduLogs = new FunduLogs(getContext());
+        mLogsFragment = new LogsFragment();
     }
 
     @Override
@@ -275,7 +275,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
             BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceAddress);
             String deviceName = device.getName() != null ? device.getName() : device.getAddress();
-            mFunduLogs.appendLogs(getResourceString(R.string.connecting));
+            mLogsFragment.appendText(getResourceString(R.string.connecting));
             connected = Connected.Pending;
             updateConnectionStatus();
             socket = new SerialSocket();
@@ -290,7 +290,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         connected = Connected.False;
         service.disconnect();
         socket.disconnect();
-        mFunduLogs.appendLogs(getResourceString(R.string.disconnected));
+        mLogsFragment.appendText(getResourceString(R.string.disconnected));
         updateConnectionStatus();
     }
 
@@ -311,7 +311,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     private void receive(byte[] data) {
         mCommandParser.receive(data);
-        mFunduLogs.appendLogs(new String(data));
+        mLogsFragment.appendText(new String(data));
     }
 
     @Override
@@ -330,8 +330,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             builder.create().show();
             return true;
         } else if (idSelected == R.id.show_logs) {
-            Fragment fragment = new LogsFragment();
-            getFragmentManager().beginTransaction().replace(R.id.fragment, fragment).addToBackStack(null).commit();
+            getFragmentManager().beginTransaction().replace(R.id.fragment, mLogsFragment).addToBackStack(null).commit();
             return true;
         } else {
             return super.onOptionsItemSelected(item);
@@ -344,14 +343,14 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
      */
     @Override
     public void onSerialConnect() {
-        mFunduLogs.appendLogs(getResourceString(R.string.connected));
+        mLogsFragment.appendText(getResourceString(R.string.connected));
         connected = Connected.True;
         updateConnectionStatus();
     }
 
     @Override
     public void onSerialConnectError(Exception e) {
-        mFunduLogs.appendLogs("Connection failed: " + e.getMessage() + '\n');
+        mLogsFragment.appendText("Connection failed: " + e.getMessage() + '\n');
         disconnect();
     }
 
@@ -362,7 +361,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     @Override
     public void onSerialIoError(Exception e) {
-        mFunduLogs.appendLogs("Connection lost: " + e.getMessage() + '\n');
+        mLogsFragment.appendText("Connection lost: " + e.getMessage() + '\n');
         disconnect();
     }
 

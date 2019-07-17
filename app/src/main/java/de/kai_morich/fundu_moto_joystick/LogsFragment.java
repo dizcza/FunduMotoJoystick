@@ -16,7 +16,7 @@ import android.widget.TextView;
 public class LogsFragment extends Fragment {
 
     private TextView mLogsTextView;
-    private FunduLogs mFunduLogs;
+    private final StringBuilder mFunduLogs = new StringBuilder();
 
     public LogsFragment() {
     }
@@ -26,7 +26,6 @@ public class LogsFragment extends Fragment {
         super.onCreate(savedInstanceState);
         setHasOptionsMenu(true);
         setRetainInstance(true);
-        mFunduLogs = new FunduLogs(getContext());
     }
 
     @Override
@@ -34,9 +33,13 @@ public class LogsFragment extends Fragment {
         View view = inflater.inflate(R.layout.logs_fragment, container, false);
         mLogsTextView = view.findViewById(R.id.logs_view);
         mLogsTextView.setMovementMethod(ScrollingMovementMethod.getInstance());
-        String logs = mFunduLogs.readLogsInvasive();
-        mLogsTextView.setText(logs);
         return view;
+    }
+
+    @Override
+    public void onResume() {
+        super.onResume();
+        mLogsTextView.setText(mFunduLogs.toString());
     }
 
     @Override
@@ -49,11 +52,15 @@ public class LogsFragment extends Fragment {
         final int idSelected = item.getItemId();
         if (idSelected == R.id.clear) {
             mLogsTextView.setText("");
-            mFunduLogs.delete();
+            mFunduLogs.setLength(0);
             return true;
         } else {
             return super.onOptionsItemSelected(item);
         }
+    }
+
+    public void appendText(String text) {
+        mFunduLogs.append(text);
     }
 
 }
