@@ -34,16 +34,23 @@ public class CommandParser {
         }
         switch (mCommand.charAt(0)) {
             case 'S':
-                //  S<servo angle:3d>,<sonar dist:.2f>
+                //  S<servo angle:3d>,<sonar dist:.3f>
                 // angle in [-90, 90]
                 // dist in [0.00, 1.00]
-                if (mCommand.charAt(4) != ',') {
+                if (mCommand.length() != 10 || mCommand.charAt(4) != ',') {
                     // invalid packet
                     return;
                 }
-                int servoAngle = Integer.parseInt(mCommand.substring(1, 4));
+                int servoAngle;
+                float sonarDistNorm;
+                try {
+                    servoAngle = Integer.parseInt(mCommand.substring(1, 4));
+                    sonarDistNorm = Float.parseFloat(mCommand.substring(5));
+                } catch (NumberFormatException e) {
+                    e.printStackTrace();
+                    return;
+                }
                 float servoAngleNorm = (servoAngle + 90) / 180.f;
-                float sonarDistNorm = Float.parseFloat(mCommand.substring(5));
                 sonarDistNorm *= SCALE_SONAR_DIST;
                 if (sonarDistNorm > 1.0f) {
                     sonarDistNorm = 1.0f;

@@ -32,5 +32,6 @@ public class SonarView extends View {
 
     public void clear() {
         mPath.reset();
+        invalidate();
     }
 }

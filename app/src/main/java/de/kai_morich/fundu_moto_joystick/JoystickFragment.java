@@ -119,6 +119,11 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     public void onResume() {
         super.onResume();
         updateConnectionStatus();
+        if (initialStart && service !=null) {
+            initialStart = false;
+            connect();
+        }
+        sendServoAngle(mServoSlider.getProgress());
     }
 
     @Override
@@ -140,6 +145,14 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         service = null;
     }
 
+    private void sendServoAngle(int progress) {
+        float progressNormalized = progress / (float) mServoSlider.getMaxProgress();
+        int angle = (int) (progressNormalized * 180 - 90);
+        String servoCommand = String.format(Locale.ENGLISH, "S%03d%s", angle, newline);
+        send(servoCommand.getBytes());
+        Log.d(TAG, servoCommand);
+    }
+
     /*
      * UI
      */
@@ -157,11 +170,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         mServoSlider.setOnProgressChangedListener(new ProgressListener() {
             @Override
             public void invoke(int progress) {
-                float progressNormalized = progress / (float) mServoSlider.getMaxProgress();
-                int angle = (int) (progressNormalized * 180 - 90);
-                String servoCommand = String.format(Locale.ENGLISH, "S%03d%s", angle, newline);
-                send(servoCommand.getBytes());
-                Log.d(TAG, servoCommand);
+                sendServoAngle(progress);
             }
         });
 
@@ -174,6 +183,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                     connect();
                 } else {
                     disconnect();
+                    mSonarView.clear();
                 }
             }
         });
@@ -346,6 +356,9 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         mLogsFragment.appendText(getResourceString(R.string.connected));
         connected = Connected.True;
         updateConnectionStatus();
+        if (mServoSlider != null) {
+            sendServoAngle(mServoSlider.getProgress());
+        }
     }
 
     @Override
