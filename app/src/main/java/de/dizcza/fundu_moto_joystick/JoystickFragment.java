@@ -1,4 +1,4 @@
-package de.kai_morich.fundu_moto_joystick;
+package de.dizcza.fundu_moto_joystick;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -33,7 +33,7 @@ import com.marcinmoskala.arcseekbar.ProgressListener;
 import java.io.IOException;
 import java.util.Locale;
 
-import de.kai_morich.fundu_moto_joystick.LogsFragment.LogEvent;
+import de.dizcza.fundu_moto_joystick.LogsFragment.LogEvent;
 
 public class JoystickFragment extends Fragment implements ServiceConnection, SerialListener {
 

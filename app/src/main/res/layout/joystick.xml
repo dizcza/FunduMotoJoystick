@@ -34,7 +34,7 @@
         android:layout_marginTop="50dp"
         android:orientation="vertical">
 
-        <de.kai_morich.fundu_moto_joystick.SonarView
+        <de.dizcza.fundu_moto_joystick.SonarView
             android:id="@+id/sonar_view"
             android:layout_width="300dp"
             android:layout_height="100dp"

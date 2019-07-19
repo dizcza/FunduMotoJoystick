@@ -1,4 +1,4 @@
-package de.kai_morich.fundu_moto_joystick;
+package de.dizcza.fundu_moto_joystick;
 
 import android.os.Bundle;
 import android.support.v4.app.FragmentManager;
