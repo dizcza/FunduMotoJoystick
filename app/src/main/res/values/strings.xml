@@ -1,5 +1,5 @@
 <resources>
-    <string name="app_name">FunduMotoJoystick</string>
+    <string name="app_name">FunduMoto Joystick</string>
     <string name="devices">Bluetooth Devices</string>
     <string name="terminal_hint">Terminal logs will be shown here</string>
     <string name="connecting">Connecting…</string>
