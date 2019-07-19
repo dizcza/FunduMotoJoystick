@@ -12,6 +12,7 @@
         android:gravity="bottom"
         android:scrollbars="vertical"
         android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+        android:textSize="15dp"
         android:hint="@string/terminal_hint"/>
 
 </RelativeLayout>

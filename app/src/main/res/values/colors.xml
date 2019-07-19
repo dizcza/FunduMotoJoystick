@@ -8,6 +8,9 @@
     <color name="success">#00FF00</color>
     <color name="failed">#DD0000</color>
 
+    <color name="transmitted">#82CAFF</color>
+    <color name="received">#77DD77</color>
+
     <color name="sliderBack">#BBBBBB</color>
     <array name="progressGradientColors">
         <item>#b5fff6</item>
