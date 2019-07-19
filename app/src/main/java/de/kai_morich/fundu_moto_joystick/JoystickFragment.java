@@ -11,7 +11,6 @@ import android.content.Intent;
 import android.content.ServiceConnection;
 import android.graphics.PointF;
 import android.os.Bundle;
-import android.os.Handler;
 import android.os.IBinder;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
@@ -57,6 +56,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private ArcSeekBar mServoSlider;
     private SonarView mSonarView;
     private CommandParser mCommandParser;
+    private String mLastSentCommand = "";
 
 
     public JoystickFragment() {
@@ -118,6 +118,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onResume() {
         super.onResume();
+        mLastSentCommand = "";
         updateConnectionStatus();
         if (initialStart && service !=null) {
             initialStart = false;
@@ -308,10 +309,15 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         if (connected != Connected.True) {
             return false;
         }
+        String command = new String(data);
+        if (command.equals(mLastSentCommand)) {
+            return false;
+        }
         boolean success;
         try {
             socket.write(data);
-            mLogsFragment.appendText(new String(data), LogsFragment.LogEvent.Transmitted);
+            mLogsFragment.appendText(command, LogEvent.Transmitted);
+            mLastSentCommand = command;
             success = true;
         } catch (IOException e) {
             onSerialIoError(e);
