@@ -232,9 +232,9 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                 if (moveVector != null) {
                     float x = moveVector.x;
                     float y = moveVector.y;
-                    int angle = (int) Math.atan2(y, x);
+                    double angle = Math.atan2(y, x);
                     double radiusNorm = Math.sqrt(x * x + y * y);
-                    String motorCommand = String.format(Locale.ENGLISH, "M%03d,%.2f%s", angle, radiusNorm, newline);
+                    String motorCommand = String.format(Locale.ENGLISH, "M%04d,%.2f%s", (int) angle, radiusNorm, newline);
                     send(motorCommand.getBytes());
                     Log.d(TAG, motorCommand);
                 }
