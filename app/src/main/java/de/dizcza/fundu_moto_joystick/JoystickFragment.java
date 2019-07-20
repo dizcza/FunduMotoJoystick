@@ -33,8 +33,6 @@ import com.marcinmoskala.arcseekbar.ProgressListener;
 import java.io.IOException;
 import java.util.Locale;
 
-import de.dizcza.fundu_moto_joystick.LogsFragment.LogEvent;
-
 public class JoystickFragment extends Fragment implements ServiceConnection, SerialListener {
 
     private enum Connected {False, Pending, True}
@@ -266,7 +264,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             case Pending:
                 mConnectButton.setChecked(true);
                 mConnectButton.setEnabled(false);
-                mConnectionStatusText.setTextColor(getResources().getColor(R.color.pending));
+                mConnectionStatusText.setTextColor(getResources().getColor(R.color.status));
                 mConnectionStatusText.setText(R.string.connecting);
                 break;
             case True:
@@ -286,7 +284,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
             BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceAddress);
             String deviceName = device.getName() != null ? device.getName() : device.getAddress();
-            mLogsFragment.appendText(getResourceString(R.string.connecting), LogEvent.Status);
+            mLogsFragment.appendStatus(getResourceString(R.string.connecting));
             connected = Connected.Pending;
             updateConnectionStatus();
             socket = new SerialSocket();
@@ -301,7 +299,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         connected = Connected.False;
         service.disconnect();
         socket.disconnect();
-        mLogsFragment.appendText(getResourceString(R.string.disconnected), LogEvent.Status);
+        mLogsFragment.appendStatus(getResourceString(R.string.disconnected));
         updateConnectionStatus();
     }
 
@@ -316,7 +314,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         boolean success;
         try {
             socket.write(data);
-            mLogsFragment.appendText(command, LogEvent.Transmitted);
+            mLogsFragment.appendSent(command);
             mLastSentCommand = command;
             success = true;
         } catch (IOException e) {
@@ -328,7 +326,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     private void receive(byte[] data) {
         mCommandParser.receive(data);
-        mLogsFragment.appendText(new String(data));
+        mLogsFragment.appendReceived(new String(data));
     }
 
     @Override
@@ -360,7 +358,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
      */
     @Override
     public void onSerialConnect() {
-        mLogsFragment.appendText(getResourceString(R.string.connected), LogEvent.Status);
+        mLogsFragment.appendStatus(getResourceString(R.string.connected));
         connected = Connected.True;
         updateConnectionStatus();
         if (mServoSlider != null) {
@@ -370,7 +368,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     @Override
     public void onSerialConnectError(Exception e) {
-        mLogsFragment.appendText("Connection failed: " + e.getMessage() + '\n', LogEvent.Error);
+        mLogsFragment.appendStatus("Connection failed: " + e.getMessage() + '\n');
         disconnect();
     }
 
@@ -381,7 +379,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     @Override
     public void onSerialIoError(Exception e) {
-        mLogsFragment.appendText("Connection lost: " + e.getMessage() + '\n', LogEvent.Error);
+        mLogsFragment.appendStatus("Connection lost: " + e.getMessage() + '\n');
         disconnect();
     }
 

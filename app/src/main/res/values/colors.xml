@@ -4,11 +4,11 @@
     <color name="colorPrimaryDark">#303F9F</color>
     <color name="colorAccent">#FF4081</color>
 
-    <color name="pending">#FFDB58</color>
+    <color name="status">#FFDB58</color>
     <color name="success">#00FF00</color>
     <color name="failed">#DD0000</color>
 
-    <color name="transmitted">#82CAFF</color>
+    <color name="sent">#82CAFF</color>
     <color name="received">#77DD77</color>
 
     <color name="sliderBack">#BBBBBB</color>

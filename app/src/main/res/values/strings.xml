@@ -1,7 +1,11 @@
 <resources>
     <string name="app_name">FunduMoto Joystick</string>
     <string name="devices">Bluetooth Devices</string>
-    <string name="terminal_hint">Terminal logs will be shown here</string>
+
+    <string name="logs_hint_status">Status logs</string>
+    <string name="logs_hint_sent">Sent logs</string>
+    <string name="logs_hint_received">Received logs</string>
+
     <string name="connecting">Connecting…</string>
     <string name="connected">Connected</string>
     <string name="disconnected">Disconnected</string>

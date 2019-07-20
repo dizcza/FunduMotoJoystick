@@ -4,11 +4,7 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
-import android.text.Spannable;
-import android.text.SpannableStringBuilder;
 import android.text.method.ScrollingMovementMethod;
-import android.text.style.ForegroundColorSpan;
-import android.util.Log;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -17,25 +13,23 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
+import java.util.Arrays;
+
 public class LogsFragment extends Fragment {
 
-    private TextView mLogsTextView;
-    private final StringBuilder mFunduLogs = new StringBuilder();
+    private final LogsView mStatusView = new LogsView();
+    private final LogsView mSentView = new LogsView();
+    private final LogsView mReceivedView = new LogsView();
 
-    public static enum LogEvent {
-        Status("[Status] "),
-        Error("[Error] "),
-        Transmitted("[TX] ");
-        // Don't create a tag for RX because of the streaming nature of RX data.
+    private class LogsView {
+        TextView view;
+        final StringBuilder logs = new StringBuilder();
 
-        final String prefix;
-
-        LogEvent(String tag) {
-            this.prefix = tag;
+        private void setView(TextView view) {
+            view.setMovementMethod(ScrollingMovementMethod.getInstance());
+            this.view = view;
         }
     }
-
-    ;
 
     public LogsFragment() {
     }
@@ -50,38 +44,22 @@ public class LogsFragment extends Fragment {
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.logs_fragment, container, false);
-        mLogsTextView = view.findViewById(R.id.logs_view);
-        mLogsTextView.setMovementMethod(ScrollingMovementMethod.getInstance());
-        mLogsTextView.setTextColor(getResources().getColor(R.color.received));  // set as default color to reduce number of spans
+        mStatusView.setView(view.findViewById(R.id.logs_status));
+        mSentView.setView(view.findViewById(R.id.logs_sent));
+        mReceivedView.setView(view.findViewById(R.id.logs_received));
         return view;
     }
 
-    private SpannableStringBuilder getSpan(String str, int colorId) {
-        SpannableStringBuilder spn = new SpannableStringBuilder(str);
-        spn.setSpan(new ForegroundColorSpan(getResources().getColor(colorId)), 0, spn.length(), Spannable.SPAN_EXCLUSIVE_EXCLUSIVE);
-        return spn;
-    }
-
-    private void showLogs() {
-        String logs = mFunduLogs.toString();
-        for (String line : logs.split("\n")) {
-            line = line + '\n';
-            if (line.startsWith(LogEvent.Status.prefix)) {
-                mLogsTextView.append(getSpan(line, R.color.pending));
-            } else if (line.startsWith(LogEvent.Error.prefix)) {
-                mLogsTextView.append(getSpan(line, R.color.failed));
-            } else if (line.startsWith(LogEvent.Transmitted.prefix)) {
-                mLogsTextView.append(getSpan(line, R.color.transmitted));
-            } else {
-                mLogsTextView.append(line);
-            }
-        }
+    private Iterable<LogsView> getViews() {
+        return Arrays.asList(mStatusView, mSentView, mReceivedView);
     }
 
     @Override
     public void onResume() {
         super.onResume();
-        showLogs();
+        for (LogsView logsView : getViews()) {
+            logsView.view.setText(logsView.logs.toString());
+        }
     }
 
     @Override
@@ -93,21 +71,28 @@ public class LogsFragment extends Fragment {
     public boolean onOptionsItemSelected(MenuItem item) {
         final int idSelected = item.getItemId();
         if (idSelected == R.id.clear) {
-            mLogsTextView.setText("");
-            mFunduLogs.setLength(0);
+            for (LogsView logsView : getViews()) {
+                logsView.view.setText("");
+                logsView.logs.setLength(0);
+            }
             return true;
         } else {
             return super.onOptionsItemSelected(item);
         }
     }
 
-    public void appendText(String text) {
-        mFunduLogs.append(text);
+    public void appendStatus(String text) {
+        mStatusView.logs.append(text);
     }
 
-    public void appendText(String text, LogEvent event) {
-        text = event.prefix + text;
-        mFunduLogs.append(text);
+
+    public void appendSent(String text) {
+        mSentView.logs.append(text);
+    }
+
+
+    public void appendReceived(String text) {
+        mReceivedView.logs.append(text);
     }
 
 }

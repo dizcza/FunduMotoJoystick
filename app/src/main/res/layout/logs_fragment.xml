@@ -1,18 +1,54 @@
 <?xml version="1.0" encoding="utf-8"?>
-<RelativeLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:layout_weight="1.0">
+    android:orientation="vertical"
+    android:weightSum="1">
 
     <TextView
-        android:id="@+id/logs_view"
+        android:id="@+id/logs_status"
         android:layout_width="match_parent"
-        android:layout_height="match_parent"
-        android:layout_alignParentTop="true"
+        android:layout_height="0dp"
+        android:layout_weight="0.15"
         android:gravity="bottom"
+        android:hint="@string/logs_hint_status"
         android:scrollbars="vertical"
         android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-        android:textSize="15dp"
-        android:hint="@string/terminal_hint"/>
+        android:textColor="@color/status"
+        android:textSize="@dimen/log_size" />
 
-</RelativeLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="0.85"
+        android:orientation="horizontal"
+        android:weightSum="1">
+
+        <TextView
+            android:id="@+id/logs_sent"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0.5"
+            android:gravity="bottom"
+            android:hint="@string/logs_hint_sent"
+            android:scrollbars="vertical"
+            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+            android:textColor="@color/sent"
+            android:textSize="@dimen/log_size" />
+
+        <TextView
+            android:id="@+id/logs_received"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="0.5"
+            android:gravity="bottom"
+            android:hint="@string/logs_hint_received"
+            android:scrollbars="vertical"
+            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+            android:textColor="@color/received"
+            android:textSize="@dimen/log_size" />
+
+    </LinearLayout>
+
+</LinearLayout>
