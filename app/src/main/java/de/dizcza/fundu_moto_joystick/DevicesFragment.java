@@ -107,7 +107,9 @@ public class DevicesFragment extends ListFragment {
     public void onListItemClick(ListView l, View v, int position, long id) {
         BluetoothDevice device = listItems.get(position-1);
         Bundle args = new Bundle();
+        String deviceName = device.getName() != null ? device.getName() : device.getAddress();
         args.putString("device", device.getAddress());
+        args.putString("deviceName", deviceName);
         Fragment fragment = new JoystickFragment();
         fragment.setArguments(args);
         getFragmentManager().beginTransaction().replace(R.id.fragment, fragment).addToBackStack(null).commit();

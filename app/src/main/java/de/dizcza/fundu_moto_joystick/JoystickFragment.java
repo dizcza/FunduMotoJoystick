@@ -24,8 +24,7 @@ import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.ImageView;
-import android.widget.TextView;
-import android.widget.ToggleButton;
+import android.widget.Toast;
 
 import com.marcinmoskala.arcseekbar.ArcSeekBar;
 import com.marcinmoskala.arcseekbar.ProgressListener;
@@ -35,24 +34,26 @@ import java.util.Locale;
 
 public class JoystickFragment extends Fragment implements ServiceConnection, SerialListener {
 
+    private static final String TAG = JoystickFragment.class.getName();
+
     private enum Connected {False, Pending, True}
 
     private String deviceAddress;
+    private String deviceName;
     private String newline = "\r\n";
 
     private SerialSocket socket;
     private SerialService service;
     private boolean initialStart = true;
     private Connected connected = Connected.False;
-    private TextView mConnectionStatusText;
-    private ToggleButton mConnectButton;
 
-    private PointF mPointerInitPos;
-    private PointF mPointerCenter;
-    private static final String TAG = JoystickFragment.class.getName();
     private LogsFragment mLogsFragment;
     private ArcSeekBar mServoSlider;
     private SonarView mSonarView;
+    private MenuItem mConnectDeviceMenuItem;
+
+    private PointF mPointerInitPos;
+    private PointF mPointerCenter;
     private CommandParser mCommandParser;
     private String mLastSentCommand = "";
 
@@ -69,6 +70,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         setHasOptionsMenu(true);
         setRetainInstance(true);
         deviceAddress = getArguments().getString("device");
+        deviceName = getArguments().getString("deviceName");
         mLogsFragment = new LogsFragment();
     }
 
@@ -117,12 +119,13 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     public void onResume() {
         super.onResume();
         mLastSentCommand = "";
-        updateConnectionStatus();
-        if (initialStart && service !=null) {
+        if (initialStart && service != null) {
             initialStart = false;
             connect();
         }
-        sendServoAngle(mServoSlider.getProgress());
+        if (connected.equals(Connected.True)) {
+            sendServoAngle(mServoSlider.getProgress());
+        }
     }
 
     @Override
@@ -173,19 +176,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             }
         });
 
-        mConnectionStatusText = joystickView.findViewById(R.id.bluetooth_connection_status);
-        mConnectButton = joystickView.findViewById(R.id.bluetooth_connection_toggle);
-        mConnectButton.setOnClickListener(new View.OnClickListener() {
-            @Override
-            public void onClick(View v) {
-                if (mConnectButton.isChecked()) {
-                    connect();
-                } else {
-                    disconnect();
-                    mSonarView.clear();
-                }
-            }
-        });
         ImageView directionCircleView = joystickView.findViewById(R.id.circle_direction_view);
         final ImageView outerCircle = joystickView.findViewById(R.id.circle_background_view);
         directionCircleView.setOnTouchListener(new View.OnTouchListener() {
@@ -256,22 +246,13 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private void updateConnectionStatus() {
         switch (connected) {
             case False:
-                mConnectButton.setChecked(false);
-                mConnectButton.setEnabled(true);
-                mConnectionStatusText.setTextColor(getResources().getColor(R.color.failed));
-                mConnectionStatusText.setText(R.string.disconnected);
+                mConnectDeviceMenuItem.setChecked(false);
+                mConnectDeviceMenuItem.setIcon(R.drawable.ic_action_connect);
                 break;
             case Pending:
-                mConnectButton.setChecked(true);
-                mConnectButton.setEnabled(false);
-                mConnectionStatusText.setTextColor(getResources().getColor(R.color.status));
-                mConnectionStatusText.setText(R.string.connecting);
-                break;
             case True:
-                mConnectButton.setChecked(true);
-                mConnectButton.setEnabled(true);
-                mConnectionStatusText.setTextColor(getResources().getColor(R.color.success));
-                mConnectionStatusText.setText(R.string.connected);
+                mConnectDeviceMenuItem.setChecked(true);
+                mConnectDeviceMenuItem.setIcon(R.drawable.ic_action_disconnect);
                 break;
         }
     }
@@ -283,13 +264,16 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         try {
             BluetoothAdapter bluetoothAdapter = BluetoothAdapter.getDefaultAdapter();
             BluetoothDevice device = bluetoothAdapter.getRemoteDevice(deviceAddress);
-            String deviceName = device.getName() != null ? device.getName() : device.getAddress();
-            mLogsFragment.appendStatus(getResourceString(R.string.connecting));
             connected = Connected.Pending;
             updateConnectionStatus();
             socket = new SerialSocket();
-            service.connect(this, "Connected to " + deviceName);
+            String message = String.format(Locale.ENGLISH, "%s to %s\n",
+                    stripResourceNewLine(R.string.connected), deviceName);
+            service.connect(this, message);
             socket.connect(getContext(), service, device);
+            String messagePending = getResourceString(R.string.connecting);
+            mLogsFragment.appendStatus(messagePending);
+            Toast.makeText(getContext(), messagePending, Toast.LENGTH_SHORT).show();
         } catch (Exception e) {
             onSerialConnectError(e);
         }
@@ -299,12 +283,15 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         connected = Connected.False;
         service.disconnect();
         socket.disconnect();
-        mLogsFragment.appendStatus(getResourceString(R.string.disconnected));
         updateConnectionStatus();
+        String message = stripResourceNewLine(R.string.disconnected) + " from device\n";
+        mLogsFragment.appendStatus(message);
+        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
     }
 
     private boolean send(byte[] data) {
         if (connected != Connected.True) {
+            ToastRefrain.showText(getContext(), "Serial device not connected", Toast.LENGTH_SHORT);
             return false;
         }
         String command = new String(data);
@@ -330,25 +317,45 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     }
 
     @Override
+    public void onPrepareOptionsMenu(Menu menu) {
+        super.onPrepareOptionsMenu(menu);
+        mConnectDeviceMenuItem = menu.findItem(R.id.connect);
+        updateConnectionStatus();
+    }
+
+    private String stripResourceNewLine(int resId) {
+        String str = getResourceString(resId);
+        return str.substring(0, str.length() - 1);
+    }
+
+    @Override
     public boolean onOptionsItemSelected(MenuItem item) {
-        final int idSelected = item.getItemId();
-        if (idSelected == R.id.newline) {
-            String[] newlineNames = getResources().getStringArray(R.array.newline_names);
-            String[] newlineValues = getResources().getStringArray(R.array.newline_values);
-            int pos = java.util.Arrays.asList(newlineValues).indexOf(newline);
-            AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
-            builder.setTitle("Newline");
-            builder.setSingleChoiceItems(newlineNames, pos, (dialog, item1) -> {
-                newline = newlineValues[item1];
-                dialog.dismiss();
-            });
-            builder.create().show();
-            return true;
-        } else if (idSelected == R.id.show_logs) {
-            getFragmentManager().beginTransaction().replace(R.id.fragment, mLogsFragment).addToBackStack(null).commit();
-            return true;
-        } else {
-            return super.onOptionsItemSelected(item);
+        switch (item.getItemId()) {
+            case R.id.connect:
+                if (item.isChecked()) {
+                    disconnect();
+                    mSonarView.clear();
+                } else {
+                    connect();
+                }
+                return true;
+            case R.id.newline:
+                String[] newlineNames = getResources().getStringArray(R.array.newline_names);
+                String[] newlineValues = getResources().getStringArray(R.array.newline_values);
+                int pos = java.util.Arrays.asList(newlineValues).indexOf(newline);
+                AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                builder.setTitle("Newline");
+                builder.setSingleChoiceItems(newlineNames, pos, (dialog, item1) -> {
+                    newline = newlineValues[item1];
+                    dialog.dismiss();
+                });
+                builder.create().show();
+                return true;
+            case R.id.show_logs:
+                getFragmentManager().beginTransaction().replace(R.id.fragment, mLogsFragment).addToBackStack(null).commit();
+                return true;
+            default:
+                return super.onOptionsItemSelected(item);
         }
     }
 
@@ -358,12 +365,15 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
      */
     @Override
     public void onSerialConnect() {
-        mLogsFragment.appendStatus(getResourceString(R.string.connected));
         connected = Connected.True;
-        updateConnectionStatus();
         if (mServoSlider != null) {
             sendServoAngle(mServoSlider.getProgress());
         }
+        updateConnectionStatus();
+        String message = String.format(Locale.ENGLISH, "%s to %s\n",
+                stripResourceNewLine(R.string.connected), deviceName);
+        mLogsFragment.appendStatus(message);
+        Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
     }
 
     @Override
