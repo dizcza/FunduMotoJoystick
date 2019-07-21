@@ -1,6 +1,6 @@
-package de.dizcza.fundu_moto_joystick;
+package de.dizcza.fundu_moto_joystick.serial;
 
-interface SerialListener {
+public interface SerialListener {
     void onSerialConnect      ();
     void onSerialConnectError (Exception e);
     void onSerialRead         (byte[] data);

@@ -1,4 +1,4 @@
-package de.dizcza.fundu_moto_joystick;
+package de.dizcza.fundu_moto_joystick.serial;
 
 import android.bluetooth.BluetoothDevice;
 import android.bluetooth.BluetoothSocket;
@@ -12,7 +12,9 @@ import java.util.Arrays;
 import java.util.UUID;
 import java.util.concurrent.Executors;
 
-class SerialSocket implements Runnable {
+import de.dizcza.fundu_moto_joystick.util.Constants;
+
+public class SerialSocket implements Runnable {
 
     private static final UUID BLUETOOTH_SPP = UUID.fromString("00001101-0000-1000-8000-00805F9B34FB");
 
@@ -24,7 +26,7 @@ class SerialSocket implements Runnable {
     private BluetoothSocket socket;
     private boolean connected;
 
-    SerialSocket() {
+    public SerialSocket() {
         disconnectBroadcastReceiver = new BroadcastReceiver() {
             @Override
             public void onReceive(Context context, Intent intent) {
@@ -38,7 +40,7 @@ class SerialSocket implements Runnable {
     /**
      * connect-success and most connect-errors are returned asynchronously to listener
      */
-    void connect(Context context, SerialListener listener, BluetoothDevice device) throws IOException {
+    public void connect(Context context, SerialListener listener, BluetoothDevice device) throws IOException {
         if(connected || socket != null)
             throw new IOException("already connected");
         this.context = context;
@@ -48,7 +50,7 @@ class SerialSocket implements Runnable {
         Executors.newSingleThreadExecutor().submit(this);
     }
 
-    void disconnect() {
+    public void disconnect() {
         listener = null; // ignore remaining data and errors
         // connected = false; // run loop will reset connected
         if(socket != null) {
@@ -64,7 +66,7 @@ class SerialSocket implements Runnable {
         }
     }
 
-    void write(byte[] data) throws IOException {
+    public void write(byte[] data) throws IOException {
         if (!connected)
             throw new IOException("not connected");
         socket.getOutputStream().write(data);

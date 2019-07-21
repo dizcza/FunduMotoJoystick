@@ -1,4 +1,4 @@
-package de.dizcza.fundu_moto_joystick;
+package de.dizcza.fundu_moto_joystick.fragment;
 
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
@@ -18,6 +18,8 @@ import android.widget.TextView;
 
 import java.util.ArrayList;
 import java.util.Collections;
+
+import de.dizcza.fundu_moto_joystick.R;
 
 public class DevicesFragment extends ListFragment {
 

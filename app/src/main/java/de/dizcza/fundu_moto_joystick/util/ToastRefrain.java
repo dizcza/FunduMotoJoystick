@@ -1,4 +1,4 @@
-package de.dizcza.fundu_moto_joystick;
+package de.dizcza.fundu_moto_joystick.util;
 
 import android.content.Context;
 import android.widget.Toast;

@@ -1,6 +1,8 @@
-package de.dizcza.fundu_moto_joystick;
+package de.dizcza.fundu_moto_joystick.util;
 
 import android.content.Context;
+
+import de.dizcza.fundu_moto_joystick.fragment.SonarView;
 
 public class CommandParser {
     private static final float SCALE_SONAR_DIST = 3.0f;

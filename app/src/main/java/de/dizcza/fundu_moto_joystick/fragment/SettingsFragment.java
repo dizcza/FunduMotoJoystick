@@ -1,4 +1,4 @@
-package de.dizcza.fundu_moto_joystick;
+package de.dizcza.fundu_moto_joystick.fragment;
 
 import android.content.Context;
 import android.content.SharedPreferences;
@@ -6,7 +6,6 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
-import android.text.InputFilter;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
@@ -16,6 +15,9 @@ import android.widget.EditText;
 import android.widget.TextView;
 
 import java.util.Locale;
+
+import de.dizcza.fundu_moto_joystick.util.Constants;
+import de.dizcza.fundu_moto_joystick.R;
 
 
 public class SettingsFragment extends Fragment {

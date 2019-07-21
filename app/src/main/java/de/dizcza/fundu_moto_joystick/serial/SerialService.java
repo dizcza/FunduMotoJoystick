@@ -1,4 +1,4 @@
-package de.dizcza.fundu_moto_joystick;
+package de.dizcza.fundu_moto_joystick.serial;
 
 import android.app.Notification;
 import android.app.NotificationChannel;
@@ -18,14 +18,17 @@ import android.support.v4.app.NotificationCompat;
 import java.util.LinkedList;
 import java.util.Queue;
 
+import de.dizcza.fundu_moto_joystick.util.Constants;
+import de.dizcza.fundu_moto_joystick.R;
+
 /**
  * create notification and queue serial data while activity is not in the foreground
  * use listener chain: SerialSocket -> SerialService -> UI fragment
  */
 public class SerialService extends Service implements SerialListener {
 
-    class SerialBinder extends Binder {
-        SerialService getService() { return SerialService.this; }
+    public class SerialBinder extends Binder {
+        public SerialService getService() { return SerialService.this; }
     }
 
     private enum QueueType {Connect, ConnectError, Read, IoError}

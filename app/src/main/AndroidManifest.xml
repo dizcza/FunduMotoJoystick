@@ -22,7 +22,7 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
-        <service android:name="de.dizcza.fundu_moto_joystick.SerialService" />
+        <service android:name="de.dizcza.fundu_moto_joystick.serial.SerialService" />
     </application>
 
 </manifest>

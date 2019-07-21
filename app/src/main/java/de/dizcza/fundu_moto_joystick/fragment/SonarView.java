@@ -1,4 +1,4 @@
-package de.dizcza.fundu_moto_joystick;
+package de.dizcza.fundu_moto_joystick.fragment;
 
 import android.content.Context;
 import android.graphics.Canvas;

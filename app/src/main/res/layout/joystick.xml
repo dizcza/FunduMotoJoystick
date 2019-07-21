@@ -6,7 +6,7 @@
     android:layout_gravity="center_horizontal"
     android:orientation="vertical">
 
-    <de.dizcza.fundu_moto_joystick.SonarView
+    <de.dizcza.fundu_moto_joystick.fragment.SonarView
         android:id="@+id/sonar_view"
         android:layout_width="300dp"
         android:layout_height="100dp"

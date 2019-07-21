@@ -1,4 +1,4 @@
-package de.dizcza.fundu_moto_joystick;
+package de.dizcza.fundu_moto_joystick.fragment;
 
 import android.os.Bundle;
 import android.support.annotation.NonNull;
@@ -14,6 +14,8 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import java.util.Arrays;
+
+import de.dizcza.fundu_moto_joystick.R;
 
 public class LogsFragment extends Fragment {
 

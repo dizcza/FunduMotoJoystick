@@ -1,4 +1,4 @@
-package de.dizcza.fundu_moto_joystick;
+package de.dizcza.fundu_moto_joystick.fragment;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
@@ -31,6 +31,14 @@ import com.marcinmoskala.arcseekbar.ProgressListener;
 
 import java.io.IOException;
 import java.util.Locale;
+
+import de.dizcza.fundu_moto_joystick.util.CommandParser;
+import de.dizcza.fundu_moto_joystick.R;
+import de.dizcza.fundu_moto_joystick.serial.SerialListener;
+import de.dizcza.fundu_moto_joystick.serial.SerialService;
+import de.dizcza.fundu_moto_joystick.serial.SerialSocket;
+import de.dizcza.fundu_moto_joystick.util.ToastRefrain;
+import de.dizcza.fundu_moto_joystick.util.Utils;
 
 public class JoystickFragment extends Fragment implements ServiceConnection, SerialListener {
 
