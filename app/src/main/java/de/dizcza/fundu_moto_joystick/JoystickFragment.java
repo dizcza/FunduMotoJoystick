@@ -150,6 +150,9 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private void sendServoAngle(int progress) {
         float progressNormalized = progress / (float) mServoSlider.getMaxProgress();
         int angle = (int) (progressNormalized * 180 - 90);
+        if (Utils.isInverseServoAngleNeeded(getContext())) {
+            angle = -angle;
+        }
         String servoCommand = String.format(Locale.ENGLISH, "S%03d%s", angle, newline);
         send(servoCommand.getBytes());
         Log.d(TAG, servoCommand);
@@ -164,7 +167,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         View joystickView = inflater.inflate(R.layout.joystick, container, false);
 
         mSonarView = joystickView.findViewById(R.id.sonar_view);
-        mCommandParser = new CommandParser(mSonarView);
+        mCommandParser = new CommandParser(getContext(), mSonarView);
 
         mServoSlider = joystickView.findViewById(R.id.servo_slider);
         int[] intArray = getResources().getIntArray(R.array.progressGradientColors);
@@ -353,6 +356,9 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                 return true;
             case R.id.show_logs:
                 getFragmentManager().beginTransaction().replace(R.id.fragment, mLogsFragment).addToBackStack(null).commit();
+                return true;
+            case R.id.settings_menu:
+                getFragmentManager().beginTransaction().replace(R.id.fragment, new SettingsFragment()).addToBackStack(null).commit();
                 return true;
             default:
                 return super.onOptionsItemSelected(item);

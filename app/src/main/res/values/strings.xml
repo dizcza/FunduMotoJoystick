@@ -9,4 +9,6 @@
     <string name="connecting">Connecting…</string>
     <string name="connected">Connected</string>
     <string name="disconnected">Disconnected</string>
+
+    <string name="invert_servo">Invert servo angle</string>
 </resources>

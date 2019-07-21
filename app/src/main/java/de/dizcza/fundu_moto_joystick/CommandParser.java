@@ -1,12 +1,16 @@
 package de.dizcza.fundu_moto_joystick;
 
+import android.content.Context;
+
 public class CommandParser {
     private static final float SCALE_SONAR_DIST = 3.0f;
 
-    private final StringBuilder mCommand;
+    private final Context mContext;
     private final SonarView mSonarView;
+    private final StringBuilder mCommand;
 
-    public CommandParser(SonarView sonarView) {
+    public CommandParser(Context context, SonarView sonarView) {
+        mContext = context;
         mSonarView = sonarView;
         mCommand = new StringBuilder();
     }
@@ -45,6 +49,9 @@ public class CommandParser {
                 float sonarDistNorm;
                 try {
                     servoAngle = Integer.parseInt(mCommand.substring(1, 4));
+                    if (Utils.isInverseServoAngleNeeded(mContext)) {
+                        servoAngle = -servoAngle;
+                    }
                     sonarDistNorm = Float.parseFloat(mCommand.substring(5));
                 } catch (NumberFormatException e) {
                     e.printStackTrace();

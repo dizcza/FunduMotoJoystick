@@ -10,5 +10,11 @@ class Constants {
     // values have to be unique within each app
     static final int NOTIFY_MANAGER_START_FOREGROUND_SERVICE = 1001;
 
+    public static final String PREFERENCE_FILE_NAME = "FuduMoto_Prefence";
+    public static final String INVERSE_SERVO_ANGLE = "InverseServoAngle";
+
+    public static final int SERVO_ANGLE_UPPERBOUND = 400;  // cm
+    public static final int SERVO_ANGLE_LOWERBOUND = 10;  // cm
+
     private Constants() {}
 }

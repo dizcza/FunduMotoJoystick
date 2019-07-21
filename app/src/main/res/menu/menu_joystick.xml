@@ -3,8 +3,8 @@
     xmlns:app="http://schemas.android.com/apk/res-auto">
     <item
         android:id="@+id/connect"
-        android:icon="@drawable/ic_action_connect"
         android:checkable="true"
+        android:icon="@drawable/ic_action_connect"
         android:title="Connect"
         app:showAsAction="always" />
     <item
@@ -13,4 +13,7 @@
     <item
         android:id="@+id/show_logs"
         android:title="Show Logs" />
+    <item
+        android:id="@+id/settings_menu"
+        android:title="Settings" />
 </menu>
