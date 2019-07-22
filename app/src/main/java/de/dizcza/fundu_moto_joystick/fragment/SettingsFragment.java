@@ -16,11 +16,12 @@ import android.widget.TextView;
 
 import java.util.Locale;
 
+import de.dizcza.fundu_moto_joystick.OnBackPressed;
 import de.dizcza.fundu_moto_joystick.util.Constants;
 import de.dizcza.fundu_moto_joystick.R;
 
 
-public class SettingsFragment extends Fragment {
+public class SettingsFragment extends Fragment implements OnBackPressed {
 
     private CheckBox mInverseServo;
     private EditText mMaxSonarDist;
@@ -55,14 +56,21 @@ public class SettingsFragment extends Fragment {
         mSaveButton.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View v) {
-                SharedPreferences.Editor editor = getContext().getSharedPreferences(
-                        Constants.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE).edit();
-                editor.putBoolean(Constants.INVERSE_SERVO_ANGLE, mInverseServo.isChecked());
-                editor.commit();
+                save();
             }
         });
         return view;
     }
 
+    private void save() {
+        SharedPreferences.Editor editor = getContext().getSharedPreferences(
+                Constants.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE).edit();
+        editor.putBoolean(Constants.INVERSE_SERVO_ANGLE, mInverseServo.isChecked());
+        editor.commit();
+    }
 
+    @Override
+    public void onBackPressed() {
+        save();
+    }
 }
