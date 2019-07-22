@@ -86,7 +86,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     public void onDestroy() {
         if (connected != Connected.False)
             disconnect();
-        getActivity().stopService(new Intent(getActivity(), SerialService.class));
+        getContext().stopService(new Intent(getContext(), SerialService.class));
         super.onDestroy();
     }
 
@@ -96,7 +96,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         if (service != null)
             service.attach(this);
         else
-            getActivity().startService(new Intent(getActivity(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
+            getContext().startService(new Intent(getContext(), SerialService.class)); // prevents service destroy on unbind from recreated activity caused by orientation change
     }
 
     @Override
@@ -111,13 +111,13 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onAttach(Activity activity) {
         super.onAttach(activity);
-        getActivity().bindService(new Intent(getActivity(), SerialService.class), this, Context.BIND_AUTO_CREATE);
+        getContext().bindService(new Intent(getContext(), SerialService.class), this, Context.BIND_AUTO_CREATE);
     }
 
     @Override
     public void onDetach() {
         try {
-            getActivity().unbindService(this);
+            getContext().unbindService(this);
         } catch (Exception ignored) {
         }
         super.onDetach();
@@ -354,7 +354,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                 String[] newlineNames = getResources().getStringArray(R.array.newline_names);
                 String[] newlineValues = getResources().getStringArray(R.array.newline_values);
                 int pos = java.util.Arrays.asList(newlineValues).indexOf(newline);
-                AlertDialog.Builder builder = new AlertDialog.Builder(getActivity());
+                AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
                 builder.setTitle("Newline");
                 builder.setSingleChoiceItems(newlineNames, pos, (dialog, item1) -> {
                     newline = newlineValues[item1];
