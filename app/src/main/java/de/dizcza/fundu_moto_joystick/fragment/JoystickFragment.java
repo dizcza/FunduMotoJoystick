@@ -248,6 +248,8 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     @Override
     public void onCreateOptionsMenu(Menu menu, MenuInflater inflater) {
         inflater.inflate(R.menu.menu_joystick, menu);
+        mConnectDeviceMenuItem = menu.findItem(R.id.connect);
+        updateConnectionStatus();
     }
 
     private String getResourceString(int resId) {
@@ -255,6 +257,9 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void updateConnectionStatus() {
+        if (mConnectDeviceMenuItem == null) {
+            return;
+        }
         switch (connected) {
             case False:
                 mConnectDeviceMenuItem.setChecked(false);
@@ -325,13 +330,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private void receive(byte[] data) {
         mCommandParser.receive(data);
         mLogsFragment.appendReceived(new String(data));
-    }
-
-    @Override
-    public void onPrepareOptionsMenu(Menu menu) {
-        super.onPrepareOptionsMenu(menu);
-        mConnectDeviceMenuItem = menu.findItem(R.id.connect);
-        updateConnectionStatus();
     }
 
     private String stripResourceNewLine(int resId) {
