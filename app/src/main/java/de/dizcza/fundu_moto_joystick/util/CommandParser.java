@@ -5,7 +5,6 @@ import android.content.Context;
 import de.dizcza.fundu_moto_joystick.fragment.SonarView;
 
 public class CommandParser {
-    private static final float SCALE_SONAR_DIST = 3.0f;
 
     private final Context mContext;
     private final SonarView mSonarView;
@@ -60,7 +59,6 @@ public class CommandParser {
                     return;
                 }
                 float servoAngleNorm = (servoAngle + 90) / 180.f;
-                sonarDistNorm *= SCALE_SONAR_DIST;
                 if (sonarDistNorm > 1.0f) {
                     sonarDistNorm = 1.0f;
                 }

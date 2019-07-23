@@ -11,4 +11,9 @@
     <string name="disconnected">Disconnected</string>
 
     <string name="invert_servo">Invert servo angle</string>
+    <string name="sonar_tolerance_in_cm">Sonar tolerance in cm</string>
+    <string name="newline_n">LF</string>
+    <string name="newline_rn">CR+LF</string>
+    <string name="new_line_mode">New line mode</string>
+    <string name="sonar_median_filter">Sonar median filter size</string>
 </resources>

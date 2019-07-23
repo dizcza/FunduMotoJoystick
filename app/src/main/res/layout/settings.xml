@@ -10,9 +10,16 @@
         android:layout_height="wrap_content"
         android:text="@string/invert_servo" />
 
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="?android:attr/listDivider" />
+
+
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="50dp"
+        android:layout_height="wrap_content"
         android:orientation="horizontal">
 
         <TextView
@@ -28,9 +35,84 @@
             android:layout_height="wrap_content"
             android:layout_weight="1"
             android:inputType="numberDecimal"
-            android:maxLength="3"/>
+            android:maxLength="3" />
 
     </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_weight="2"
+            android:gravity="start|center_vertical"
+            android:text="@string/sonar_tolerance_in_cm" />
+
+        <EditText
+            android:id="@+id/sonar_tolerance"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:inputType="numberDecimal"
+            android:maxLength="1" />
+
+    </LinearLayout>
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="match_parent"
+            android:layout_weight="2"
+            android:gravity="start|center_vertical"
+            android:text="@string/sonar_median_filter" />
+
+        <EditText
+            android:id="@+id/sonar_median_filter_size"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:inputType="numberDecimal"
+            android:maxLength="1" />
+
+    </LinearLayout>
+
+
+    <View
+        android:layout_width="match_parent"
+        android:layout_height="2dp"
+        android:background="?android:attr/listDivider" />
+
+
+    <RadioGroup
+        android:id="@+id/radio_newline"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="vertical">
+
+        <TextView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:text="@string/new_line_mode" />
+
+        <RadioButton
+            android:id="@+id/radio_newline_lf"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/newline_n" />
+
+        <RadioButton
+            android:id="@+id/radio_newline_cr_lf"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/newline_rn" />
+    </RadioGroup>
 
     <Button
         android:id="@+id/save_settings"

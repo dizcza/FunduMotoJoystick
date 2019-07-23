@@ -8,9 +8,6 @@
         android:title="Connect"
         app:showAsAction="always" />
     <item
-        android:id="@+id/newline"
-        android:title="Newline Mode" />
-    <item
         android:id="@+id/show_logs"
         android:title="Show Logs" />
     <item

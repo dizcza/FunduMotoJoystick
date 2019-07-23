@@ -9,6 +9,7 @@ import android.content.ComponentName;
 import android.content.Context;
 import android.content.Intent;
 import android.content.ServiceConnection;
+import android.content.SharedPreferences;
 import android.graphics.PointF;
 import android.os.Bundle;
 import android.os.IBinder;
@@ -37,6 +38,7 @@ import de.dizcza.fundu_moto_joystick.R;
 import de.dizcza.fundu_moto_joystick.serial.SerialListener;
 import de.dizcza.fundu_moto_joystick.serial.SerialService;
 import de.dizcza.fundu_moto_joystick.serial.SerialSocket;
+import de.dizcza.fundu_moto_joystick.util.Constants;
 import de.dizcza.fundu_moto_joystick.util.ToastRefrain;
 import de.dizcza.fundu_moto_joystick.util.Utils;
 
@@ -48,7 +50,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     private String deviceAddress;
     private String deviceName;
-    private String newline = "\r\n";
+    private String newline = Constants.NEW_LINE_MODE_CR_LF;
 
     private SerialSocket socket;
     private SerialService service;
@@ -64,6 +66,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private PointF mPointerCenter;
     private CommandParser mCommandParser;
     private String mLastSentCommand = "";
+    private SharedPreferences mSharedPref;
 
 
     public JoystickFragment() {
@@ -80,6 +83,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         deviceAddress = getArguments().getString("device");
         deviceName = getArguments().getString("deviceName");
         mLogsFragment = new LogsFragment();
+        mSharedPref = getContext().getSharedPreferences(Constants.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE);
     }
 
     @Override
@@ -127,11 +131,13 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     public void onResume() {
         super.onResume();
         mLastSentCommand = "";
+        newline = mSharedPref.getString(Constants.NEW_LINE_MODE_KEY, Constants.NEW_LINE_MODE_CR_LF);
         if (initialStart && service != null) {
             initialStart = false;
             connect();
         }
         if (connected.equals(Connected.True)) {
+            sendDeviceSettings();
             sendServoAngle(mServoSlider.getProgress());
         }
     }
@@ -252,6 +258,18 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         updateConnectionStatus();
     }
 
+    private void sendDeviceSettings() {
+        int sonarMaxDist = mSharedPref.getInt(Constants.SONAR_MAX_DIST_KEY, Constants.SONAR_DIST_UPPERBOUND);
+        int sonarTolerance = mSharedPref.getInt(Constants.SONAR_TOLERANCE_KEY, Constants.SONAR_TOLERANCE_DEFAULT);
+        int sonarMedianFilterSize = mSharedPref.getInt(Constants.SONAR_MEDIAN_FILTER_SIZE_KEY, Constants.SONAR_MEDIAN_FILTER_SIZE_DEFAULT);
+
+        String maxSonarDistCmd = String.format(Locale.ENGLISH, "D%03d%s", sonarMaxDist, newline);
+        String sonarToleranceCmd = String.format(Locale.ENGLISH, "T%01d%s", sonarTolerance, newline);
+        String sonarMedianFilterSizeCmd = String.format(Locale.ENGLISH, "F%01d%s", sonarMedianFilterSize, newline);
+        String cmd = maxSonarDistCmd + sonarToleranceCmd + sonarMedianFilterSizeCmd;
+        send(cmd.getBytes());
+    }
+
     private String getResourceString(int resId) {
         return getResources().getString(resId) + '\n';
     }
@@ -347,18 +365,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                 } else {
                     connect();
                 }
-                return true;
-            case R.id.newline:
-                String[] newlineNames = getResources().getStringArray(R.array.newline_names);
-                String[] newlineValues = getResources().getStringArray(R.array.newline_values);
-                int pos = java.util.Arrays.asList(newlineValues).indexOf(newline);
-                AlertDialog.Builder builder = new AlertDialog.Builder(getContext());
-                builder.setTitle("Newline");
-                builder.setSingleChoiceItems(newlineNames, pos, (dialog, item1) -> {
-                    newline = newlineValues[item1];
-                    dialog.dismiss();
-                });
-                builder.create().show();
                 return true;
             case R.id.show_logs:
                 getFragmentManager().beginTransaction().replace(R.id.fragment, mLogsFragment).addToBackStack(null).commit();
