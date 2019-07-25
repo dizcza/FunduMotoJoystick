@@ -50,7 +50,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     private String deviceAddress;
     private String deviceName;
-    private String newline = Constants.NEW_LINE_MODE_CR_LF;
 
     private SerialSocket socket;
     private SerialService service;
@@ -66,7 +65,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private PointF mPointerCenter;
     private CommandParser mCommandParser;
     private String mLastSentCommand = "";
-    private SharedPreferences mSharedPref;
 
 
     public JoystickFragment() {
@@ -83,7 +81,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         deviceAddress = getArguments().getString("device");
         deviceName = getArguments().getString("deviceName");
         mLogsFragment = new LogsFragment();
-        mSharedPref = getContext().getSharedPreferences(Constants.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE);
     }
 
     @Override
@@ -131,7 +128,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     public void onResume() {
         super.onResume();
         mLastSentCommand = "";
-        newline = mSharedPref.getString(Constants.NEW_LINE_MODE_KEY, Constants.NEW_LINE_MODE_CR_LF);
         if (initialStart && service != null) {
             initialStart = false;
             connect();
@@ -167,7 +163,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         if (Utils.isInverseServoAngleNeeded(getContext())) {
             angle = -angle;
         }
-        String servoCommand = String.format(Locale.ENGLISH, "S%03d%s", angle, newline);
+        String servoCommand = String.format(Locale.ENGLISH, "S%03d%s", angle, Constants.NEW_LINE);
         send(servoCommand.getBytes());
         Log.d(TAG, servoCommand);
     }
@@ -241,7 +237,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                     float y = moveVector.y;
                     double angle = Math.atan2(y, x);
                     double radiusNorm = Math.sqrt(x * x + y * y);
-                    String motorCommand = String.format(Locale.ENGLISH, "M%04d,%.2f%s", (int) angle, radiusNorm, newline);
+                    String motorCommand = String.format(Locale.ENGLISH, "M%04d,%.2f%s", (int) angle, radiusNorm, Constants.NEW_LINE);
                     send(motorCommand.getBytes());
                     Log.d(TAG, motorCommand);
                 }
@@ -259,13 +255,14 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void sendDeviceSettings() {
-        int sonarMaxDist = mSharedPref.getInt(Constants.SONAR_MAX_DIST_KEY, Constants.SONAR_DIST_UPPERBOUND);
-        int sonarTolerance = mSharedPref.getInt(Constants.SONAR_TOLERANCE_KEY, Constants.SONAR_TOLERANCE_DEFAULT);
-        int sonarMedianFilterSize = mSharedPref.getInt(Constants.SONAR_MEDIAN_FILTER_SIZE_KEY, Constants.SONAR_MEDIAN_FILTER_SIZE_DEFAULT);
+        SharedPreferences sharedPref = getContext().getSharedPreferences(Constants.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE);
+        int sonarMaxDist = sharedPref.getInt(Constants.SONAR_MAX_DIST_KEY, Constants.SONAR_DIST_UPPERBOUND);
+        int sonarTolerance = sharedPref.getInt(Constants.SONAR_TOLERANCE_KEY, Constants.SONAR_TOLERANCE_DEFAULT);
+        int sonarMedianFilterSize = sharedPref.getInt(Constants.SONAR_MEDIAN_FILTER_SIZE_KEY, Constants.SONAR_MEDIAN_FILTER_SIZE_DEFAULT);
 
-        String maxSonarDistCmd = String.format(Locale.ENGLISH, "D%03d%s", sonarMaxDist, newline);
-        String sonarToleranceCmd = String.format(Locale.ENGLISH, "T%01d%s", sonarTolerance, newline);
-        String sonarMedianFilterSizeCmd = String.format(Locale.ENGLISH, "F%01d%s", sonarMedianFilterSize, newline);
+        String maxSonarDistCmd = String.format(Locale.ENGLISH, "D%03d%s", sonarMaxDist, Constants.NEW_LINE);
+        String sonarToleranceCmd = String.format(Locale.ENGLISH, "T%01d%s", sonarTolerance, Constants.NEW_LINE);
+        String sonarMedianFilterSizeCmd = String.format(Locale.ENGLISH, "F%01d%s", sonarMedianFilterSize, Constants.NEW_LINE);
         String cmd = maxSonarDistCmd + sonarToleranceCmd + sonarMedianFilterSizeCmd;
         send(cmd.getBytes());
     }

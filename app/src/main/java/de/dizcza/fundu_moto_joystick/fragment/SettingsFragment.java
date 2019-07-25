@@ -6,24 +6,20 @@ import android.os.Bundle;
 import android.support.annotation.NonNull;
 import android.support.annotation.Nullable;
 import android.support.v4.app.Fragment;
-import android.support.v4.util.ArrayMap;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
 import android.widget.EditText;
-import android.widget.RadioButton;
-import android.widget.RadioGroup;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import java.util.Locale;
-import java.util.Map;
 
 import de.dizcza.fundu_moto_joystick.OnBackPressed;
-import de.dizcza.fundu_moto_joystick.util.Constants;
 import de.dizcza.fundu_moto_joystick.R;
+import de.dizcza.fundu_moto_joystick.util.Constants;
 
 
 public class SettingsFragment extends Fragment implements OnBackPressed {
@@ -32,8 +28,6 @@ public class SettingsFragment extends Fragment implements OnBackPressed {
     private EditText mSonarMaxDist;
     private EditText mSonarTolerance;
     private EditText mSonarMedianFilterSize;
-    private RadioGroup mRadioGroup;
-    private final Map<Integer, String> mRadioGroupIdMap = new ArrayMap<>(2);
 
     public SettingsFragment() {
 
@@ -70,20 +64,6 @@ public class SettingsFragment extends Fragment implements OnBackPressed {
         int medianFilterSize = sharedPref.getInt(Constants.SONAR_MEDIAN_FILTER_SIZE_KEY, Constants.SONAR_MEDIAN_FILTER_SIZE_DEFAULT);
         mSonarMedianFilterSize.setText(String.valueOf(medianFilterSize));
 
-        mRadioGroupIdMap.clear();
-        mRadioGroupIdMap.put(R.id.radio_newline_lf, Constants.NEW_LINE_MODE_LF);
-        mRadioGroupIdMap.put(R.id.radio_newline_cr_lf, Constants.NEW_LINE_MODE_CR_LF);
-
-        mRadioGroup = view.findViewById(R.id.radio_newline);
-        String currNewline = sharedPref.getString(Constants.NEW_LINE_MODE_KEY, Constants.NEW_LINE_MODE_CR_LF);
-        for (Map.Entry<Integer, String> entry : mRadioGroupIdMap.entrySet()) {
-            if (currNewline.equals(entry.getValue())) {
-                RadioButton radioButton = mRadioGroup.findViewById(entry.getKey());
-                radioButton.setChecked(true);
-                break;
-            }
-        }
-
         Button saveButton = view.findViewById(R.id.save_settings);
         saveButton.setOnClickListener(new View.OnClickListener() {
             @Override
@@ -114,13 +94,10 @@ public class SettingsFragment extends Fragment implements OnBackPressed {
         int sonarTolerance = Integer.parseInt(String.valueOf(mSonarTolerance.getText()));
         int sonarMedianFilterSize = Integer.parseInt(String.valueOf(mSonarMedianFilterSize.getText()));
 
-        String newline = mRadioGroupIdMap.get(mRadioGroup.getCheckedRadioButtonId());
-
         editor.putBoolean(Constants.INVERSE_SERVO_ANGLE_KEY, mInverseServo.isChecked());
         editor.putInt(Constants.SONAR_MAX_DIST_KEY, maxSonarDist);
         editor.putInt(Constants.SONAR_TOLERANCE_KEY, sonarTolerance);
         editor.putInt(Constants.SONAR_MEDIAN_FILTER_SIZE_KEY, sonarMedianFilterSize);
-        editor.putString(Constants.NEW_LINE_MODE_KEY, newline);
         editor.commit();
 
         Toast.makeText(getContext(), "Saved", Toast.LENGTH_SHORT).show();
