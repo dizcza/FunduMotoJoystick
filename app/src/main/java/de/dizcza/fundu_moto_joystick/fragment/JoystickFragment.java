@@ -210,9 +210,11 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             }
         });
 
-        ImageView directionCircleView = joystickView.findViewById(R.id.circle_direction_view);
+        final int borderlineWidth = getResources().getDimensionPixelSize(R.dimen.circle_background_borderline_width);
+
+        final ImageView innerCircle = joystickView.findViewById(R.id.circle_direction_view);
         final ImageView outerCircle = joystickView.findViewById(R.id.circle_background_view);
-        directionCircleView.setOnTouchListener(new View.OnTouchListener() {
+        innerCircle.setOnTouchListener(new View.OnTouchListener() {
             @Override
             public boolean onTouch(View view, MotionEvent motionEvent) {
                 if (mPointerInitPos == null) {
@@ -227,22 +229,22 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                         break;
 
                     case MotionEvent.ACTION_MOVE:
-                        final float outerCircleRadius = outerCircle.getWidth() / 2.f;
-                        // motionEvent.getX() returns X's position relative to inner circle upper left corner
+                        final float maxDisplacement = (outerCircle.getWidth() - innerCircle.getWidth()) / 2.f - borderlineWidth;
+                        // motionEvent.getX() returns X's position relative to the inner circle upper left corner
                         PointF newPos = new PointF(view.getX() + motionEvent.getX(),
                                 view.getY() + motionEvent.getY());
                         float dx_pixels = newPos.x - mPointerCenter.x;
                         float dy_pixels = newPos.y - mPointerCenter.y;
                         final float dist = (float) Math.sqrt(dx_pixels * dx_pixels + dy_pixels * dy_pixels);
-                        if (dist > outerCircleRadius) {
-                            final float scale = outerCircleRadius / dist;
+                        if (dist > maxDisplacement) {
+                            final float scale = maxDisplacement / dist;
                             dx_pixels *= scale;
                             dy_pixels *= scale;
                             newPos.x = mPointerCenter.x + dx_pixels;
                             newPos.y = mPointerCenter.y + dy_pixels;
                         }
-                        moveVector = new PointF(dx_pixels / outerCircleRadius,
-                                -dy_pixels / outerCircleRadius);
+                        moveVector = new PointF(dx_pixels / maxDisplacement,
+                                -dy_pixels / maxDisplacement);
                         view.setX(newPos.x - view.getWidth() / 2.f);
                         view.setY(newPos.y - view.getHeight() / 2.f);
                         break;

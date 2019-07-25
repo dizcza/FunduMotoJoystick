@@ -36,7 +36,7 @@
             android:id="@+id/circle_background_view"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
-            android:layout_centerHorizontal="true"
+            android:layout_centerInParent="true"
             android:src="@drawable/circle_background" />
 
         <ImageView
@@ -77,8 +77,8 @@
 
     <ImageView
         android:id="@+id/horn"
-        android:layout_width="100dp"
-        android:layout_height="100dp"
+        android:layout_width="@dimen/horn_size"
+        android:layout_height="@dimen/horn_size"
         android:layout_gravity="end"
         android:layout_marginEnd="20dp"
         android:src="@drawable/horn" />

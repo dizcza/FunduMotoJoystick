@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <dimen name="log_size">15sp</dimen>
+    <dimen name="circle_background_size">250dp</dimen>
+    <dimen name="circle_background_borderline_width">2dp</dimen>
+    <dimen name="circle_direction_size">60dp</dimen>
+    <dimen name="horn_size">50dp</dimen>
 </resources>
