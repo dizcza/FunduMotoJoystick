@@ -165,7 +165,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         }
         String servoCommand = String.format(Locale.ENGLISH, "S%03d%s", angle, Constants.NEW_LINE);
         send(servoCommand.getBytes());
-        Log.d(TAG, servoCommand);
     }
 
     /*
@@ -235,11 +234,10 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                 if (moveVector != null) {
                     float x = moveVector.x;
                     float y = moveVector.y;
-                    double angle = Math.atan2(y, x);
+                    double angle = Math.atan2(y, x) * 180.f / Math.PI;
                     double radiusNorm = Math.sqrt(x * x + y * y);
                     String motorCommand = String.format(Locale.ENGLISH, "M%04d,%.2f%s", (int) angle, radiusNorm, Constants.NEW_LINE);
                     send(motorCommand.getBytes());
-                    Log.d(TAG, motorCommand);
                 }
                 return true;
             }
@@ -335,6 +333,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             mLogsFragment.appendSent(command);
             mLastSentCommand = command;
             success = true;
+            Log.d(TAG, command);
         } catch (IOException e) {
             onSerialIoError(e);
             success = false;
