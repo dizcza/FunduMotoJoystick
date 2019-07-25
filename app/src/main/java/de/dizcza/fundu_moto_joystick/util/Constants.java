@@ -17,7 +17,6 @@ public class Constants {
     public static final String SONAR_MAX_DIST_KEY = "MaxSonarDist";
     public static final String SONAR_TOLERANCE_KEY = "SonarTolerance";
     public static final String SONAR_MEDIAN_FILTER_SIZE_KEY = "SonarMedianFilterSize";
-    public static final String NEW_LINE_MODE_KEY = "NewLineMode";
 
     public static final int SONAR_DIST_UPPERBOUND = 400;  // cm
     public static final int SONAR_DIST_LOWERBOUND = 10;  // cm

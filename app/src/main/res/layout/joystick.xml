@@ -75,5 +75,13 @@
             android:src="@drawable/circle_direction" />
     </RelativeLayout>
 
+    <ImageView
+        android:id="@+id/horn"
+        android:layout_width="100dp"
+        android:layout_height="100dp"
+        android:layout_gravity="end"
+        android:layout_marginEnd="20dp"
+        android:src="@drawable/horn" />
+
 
 </LinearLayout>

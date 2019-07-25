@@ -188,6 +188,28 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             }
         });
 
+        ImageView hornView = joystickView.findViewById(R.id.horn);
+        hornView.setOnTouchListener(new View.OnTouchListener() {
+            @Override
+            public boolean onTouch(View v, MotionEvent event) {
+                char action = '\0';
+                switch (event.getAction() & MotionEvent.ACTION_MASK) {
+                    case MotionEvent.ACTION_DOWN:
+                        action = '1';  // activate buzzer
+                        break;
+                    case MotionEvent.ACTION_UP:
+                        action = '0';  // deactivate buzzer
+                        break;
+                }
+                if (action != '\0') {
+                    String hornCmd = String.format(Locale.ENGLISH,"B%c%s", action, Constants.NEW_LINE);
+                    send(hornCmd.getBytes(), true);
+                    return true;
+                }
+                return false;
+            }
+        });
+
         ImageView directionCircleView = joystickView.findViewById(R.id.circle_direction_view);
         final ImageView outerCircle = joystickView.findViewById(R.id.circle_background_view);
         directionCircleView.setOnTouchListener(new View.OnTouchListener() {
@@ -313,18 +335,23 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         service.disconnect();
         socket.disconnect();
         updateConnectionStatus();
+        mSonarView.clear();
         String message = stripResourceNewLine(R.string.disconnected) + " from device\n";
         mLogsFragment.appendStatus(message);
         Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
     }
 
     private boolean send(byte[] data) {
+        return send(data, false);
+    }
+
+    private boolean send(byte[] data, boolean force) {
         if (connected != Connected.True) {
             ToastRefrain.showText(getContext(), "Serial device not connected", Toast.LENGTH_SHORT);
             return false;
         }
         String command = new String(data);
-        if (command.equals(mLastSentCommand)) {
+        if (!force && command.equals(mLastSentCommand)) {
             return false;
         }
         boolean success;
