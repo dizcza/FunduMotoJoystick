@@ -1,3 +1,4 @@
 # FunduMotoJoystick
 
-This app implements advanced communication with FunduMoto Arduino shield. Based on https://github.com/kai-morich/SimpleBluetoothTerminal.
+This app implements Bluetooth communication with Nucleo F446RE + FunduMoto shield. Based on https://github.com/kai-morich/SimpleBluetoothTerminal.
+

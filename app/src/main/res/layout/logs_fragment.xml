@@ -4,48 +4,65 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
-    <TextView
-        android:id="@+id/logs_status"
+    <ScrollView
         android:layout_width="match_parent"
         android:layout_height="0dp"
-        android:layout_weight="0.15"
-        android:gravity="bottom"
-        android:hint="@string/logs_hint_status"
-        android:scrollbars="vertical"
-        android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-        android:textColor="@color/status"
-        android:textSize="@dimen/log_size" />
+        android:fillViewport="true"
+        android:layout_weight="0.15">
 
+        <TextView
+            android:id="@+id/logs_status"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:hint="@string/logs_hint_status"
+            android:scrollbars="vertical"
+            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+            android:textColor="@color/status"
+            android:textSize="@dimen/log_size" />
+
+    </ScrollView>
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="0.85"
-        android:orientation="horizontal">
+        android:orientation="horizontal"
+        android:baselineAligned="false">
 
-        <TextView
-            android:id="@+id/logs_sent"
+        <ScrollView
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="0.5"
-            android:gravity="bottom"
-            android:hint="@string/logs_hint_sent"
-            android:scrollbars="vertical"
-            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-            android:textColor="@color/sent"
-            android:textSize="@dimen/log_size" />
+            android:fillViewport="true"
+            android:layout_weight="0.5">
 
-        <TextView
-            android:id="@+id/logs_received"
+            <TextView
+                android:id="@+id/logs_sent"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/logs_hint_sent"
+                android:scrollbars="vertical"
+                android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+                android:textColor="@color/sent"
+                android:textSize="@dimen/log_size" />
+        </ScrollView>
+
+        <ScrollView
             android:layout_width="0dp"
             android:layout_height="match_parent"
-            android:layout_weight="0.5"
-            android:gravity="bottom"
-            android:hint="@string/logs_hint_received"
-            android:scrollbars="vertical"
-            android:textAppearance="@style/TextAppearance.AppCompat.Medium"
-            android:textColor="@color/received"
-            android:textSize="@dimen/log_size" />
+            android:fillViewport="true"
+            android:layout_weight="0.5">
+
+            <TextView
+                android:id="@+id/logs_received"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:hint="@string/logs_hint_received"
+                android:scrollbars="vertical"
+                android:textAppearance="@style/TextAppearance.AppCompat.Medium"
+                android:textColor="@color/received"
+                android:textSize="@dimen/log_size" />
+
+        </ScrollView>
 
     </LinearLayout>
 
