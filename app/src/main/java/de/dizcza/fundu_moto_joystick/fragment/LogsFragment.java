@@ -13,8 +13,11 @@ import android.view.ViewGroup;
 import android.widget.TextView;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.List;
 
 import de.dizcza.fundu_moto_joystick.R;
+import de.dizcza.fundu_moto_joystick.util.Constants;
 
 public class LogsFragment extends Fragment {
 
@@ -58,7 +61,11 @@ public class LogsFragment extends Fragment {
     public void onResume() {
         super.onResume();
         for (LogsView logsView : getViews()) {
-            logsView.view.setText(logsView.logs.toString());
+            String text = logsView.logs.toString();
+            List<String> textLines = Arrays.asList(text.split(Constants.NEW_LINE));
+            Collections.reverse(textLines);
+            String textReversed = text.join(Constants.NEW_LINE, textLines);
+            logsView.view.setText(textReversed);
         }
     }
 

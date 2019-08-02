@@ -278,7 +278,8 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     private void sendDeviceSettings() {
         SharedPreferences sharedPref = getContext().getSharedPreferences(Constants.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE);
-        int sonarMaxDist = sharedPref.getInt(Constants.SONAR_MAX_DIST_KEY, Constants.SONAR_DIST_UPPERBOUND);
+        int upperbound = getResources().getInteger(R.integer.sonar_max_dist_lowerbound);
+        int sonarMaxDist = sharedPref.getInt(Constants.SONAR_MAX_DIST_KEY, upperbound);
         int sonarTolerance = sharedPref.getInt(Constants.SONAR_TOLERANCE_KEY, Constants.SONAR_TOLERANCE_DEFAULT);
         int sonarMedianFilterSize = sharedPref.getInt(Constants.SONAR_MEDIAN_FILTER_SIZE_KEY, Constants.SONAR_MEDIAN_FILTER_SIZE_DEFAULT);
 

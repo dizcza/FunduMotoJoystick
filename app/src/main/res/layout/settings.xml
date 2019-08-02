@@ -31,7 +31,8 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="match_parent"
-            android:max="400" />
+            android:min="@integer/sonar_max_dist_lowerbound"
+            android:max="@integer/sonar_max_dist_upperbound" />
 
         <TextView
             android:id="@+id/max_sonar_dist_text"
@@ -56,6 +57,7 @@
             android:layout_width="0dp"
             android:layout_height="match_parent"
             android:layout_weight="1"
+            android:min="0"
             android:max="9" />
 
         <TextView
@@ -82,6 +84,7 @@
             android:layout_width="0dp"
             android:layout_weight="1"
             android:layout_height="match_parent"
+            android:min="1"
             android:max="7"/>
 
         <TextView

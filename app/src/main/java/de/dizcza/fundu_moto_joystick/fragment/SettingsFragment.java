@@ -66,7 +66,8 @@ public class SettingsFragment extends Fragment implements OnBackPressed {
 
         mSonarMaxDist = view.findViewById(R.id.max_sonar_dist);
         bindSeekBar(mSonarMaxDist, view.findViewById(R.id.max_sonar_dist_text));
-        int maxDist = sharedPref.getInt(Constants.SONAR_MAX_DIST_KEY, Constants.SONAR_DIST_UPPERBOUND);
+        int upperbound = getResources().getInteger(R.integer.sonar_max_dist_lowerbound);
+        int maxDist = sharedPref.getInt(Constants.SONAR_MAX_DIST_KEY, upperbound);
         mSonarMaxDist.setProgress(maxDist);
 
         mSonarTolerance = view.findViewById(R.id.sonar_tolerance);
@@ -89,26 +90,13 @@ public class SettingsFragment extends Fragment implements OnBackPressed {
         return view;
     }
 
-    private int getProgressValid(SeekBar seekBar, int lowerbound) {
-        int value = seekBar.getProgress();
-        if (value < lowerbound) {
-            seekBar.setProgress(lowerbound);
-            value = lowerbound;
-        }
-        return value;
-    }
-
     private void save() {
         SharedPreferences.Editor editor = getContext().getSharedPreferences(
                 Constants.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE).edit();
-        int maxSonarDist = getProgressValid(mSonarMaxDist, Constants.SONAR_DIST_LOWERBOUND);
-        int sonarTolerance = getProgressValid(mSonarTolerance, 1);
-        int sonarMedianFilterSize = getProgressValid(mSonarMedianFilterSize, 1);
-
         editor.putBoolean(Constants.INVERSE_SERVO_ANGLE_KEY, mInverseServo.isChecked());
-        editor.putInt(Constants.SONAR_MAX_DIST_KEY, maxSonarDist);
-        editor.putInt(Constants.SONAR_TOLERANCE_KEY, sonarTolerance);
-        editor.putInt(Constants.SONAR_MEDIAN_FILTER_SIZE_KEY, sonarMedianFilterSize);
+        editor.putInt(Constants.SONAR_MAX_DIST_KEY, mSonarMaxDist.getProgress());
+        editor.putInt(Constants.SONAR_TOLERANCE_KEY, mSonarTolerance.getProgress());
+        editor.putInt(Constants.SONAR_MEDIAN_FILTER_SIZE_KEY, mSonarMedianFilterSize.getProgress());
         editor.commit();
 
         Toast.makeText(getContext(), "Saved", Toast.LENGTH_SHORT).show();
