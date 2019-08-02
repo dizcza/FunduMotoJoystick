@@ -11,11 +11,9 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.Button;
 import android.widget.CheckBox;
-import android.widget.EditText;
+import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
-
-import java.util.Locale;
 
 import de.dizcza.fundu_moto_joystick.OnBackPressed;
 import de.dizcza.fundu_moto_joystick.R;
@@ -25,9 +23,9 @@ import de.dizcza.fundu_moto_joystick.util.Constants;
 public class SettingsFragment extends Fragment implements OnBackPressed {
 
     private CheckBox mInverseServo;
-    private EditText mSonarMaxDist;
-    private EditText mSonarTolerance;
-    private EditText mSonarMedianFilterSize;
+    private SeekBar mSonarMaxDist;
+    private SeekBar mSonarTolerance;
+    private SeekBar mSonarMedianFilterSize;
 
     public SettingsFragment() {
 
@@ -39,6 +37,25 @@ public class SettingsFragment extends Fragment implements OnBackPressed {
         setRetainInstance(true);
     }
 
+    private void bindSeekBar(SeekBar seekBar, final TextView textView) {
+        seekBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                textView.setText(String.valueOf(progress));
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+
+            }
+        });
+    }
+
     @Override
     public View onCreateView(@NonNull LayoutInflater inflater, ViewGroup container, Bundle savedInstanceState) {
         View view = inflater.inflate(R.layout.settings, container, false);
@@ -47,22 +64,20 @@ public class SettingsFragment extends Fragment implements OnBackPressed {
         boolean inverseAngle = sharedPref.getBoolean(Constants.INVERSE_SERVO_ANGLE_KEY, false);
         mInverseServo.setChecked(inverseAngle);
 
-        TextView sonarDistText = view.findViewById(R.id.sonar_dist_text);
-        sonarDistText.setText(String.format(Locale.ENGLISH, "Limit sonar range dist in cm\n(between %s and %s):",
-                Constants.SONAR_DIST_LOWERBOUND,
-                Constants.SONAR_DIST_UPPERBOUND));
-
         mSonarMaxDist = view.findViewById(R.id.max_sonar_dist);
+        bindSeekBar(mSonarMaxDist, view.findViewById(R.id.max_sonar_dist_text));
         int maxDist = sharedPref.getInt(Constants.SONAR_MAX_DIST_KEY, Constants.SONAR_DIST_UPPERBOUND);
-        mSonarMaxDist.setText(String.valueOf(maxDist));
+        mSonarMaxDist.setProgress(maxDist);
 
         mSonarTolerance = view.findViewById(R.id.sonar_tolerance);
+        bindSeekBar(mSonarTolerance, view.findViewById(R.id.sonar_tolerance_text));
         int toleranceCm = sharedPref.getInt(Constants.SONAR_TOLERANCE_KEY, Constants.SONAR_TOLERANCE_DEFAULT);
-        mSonarTolerance.setText(String.valueOf(toleranceCm));
+        mSonarTolerance.setProgress(toleranceCm);
 
         mSonarMedianFilterSize = view.findViewById(R.id.sonar_median_filter_size);
+        bindSeekBar(mSonarMedianFilterSize, view.findViewById(R.id.sonar_median_filter_size_text));
         int medianFilterSize = sharedPref.getInt(Constants.SONAR_MEDIAN_FILTER_SIZE_KEY, Constants.SONAR_MEDIAN_FILTER_SIZE_DEFAULT);
-        mSonarMedianFilterSize.setText(String.valueOf(medianFilterSize));
+        mSonarMedianFilterSize.setProgress(medianFilterSize);
 
         Button saveButton = view.findViewById(R.id.save_settings);
         saveButton.setOnClickListener(new View.OnClickListener() {
@@ -74,25 +89,21 @@ public class SettingsFragment extends Fragment implements OnBackPressed {
         return view;
     }
 
+    private int getProgressValid(SeekBar seekBar, int lowerbound) {
+        int value = seekBar.getProgress();
+        if (value < lowerbound) {
+            seekBar.setProgress(lowerbound);
+            value = lowerbound;
+        }
+        return value;
+    }
+
     private void save() {
         SharedPreferences.Editor editor = getContext().getSharedPreferences(
                 Constants.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE).edit();
-        int maxSonarDist;
-        try {
-            maxSonarDist = Integer.parseInt(String.valueOf(mSonarMaxDist.getText()));
-            if (maxSonarDist < Constants.SONAR_DIST_LOWERBOUND || maxSonarDist > Constants.SONAR_DIST_UPPERBOUND) {
-                String msg = String.format(Locale.ENGLISH, "Entered value '%d' is outside of the range [%d, %d]",
-                        maxSonarDist, Constants.SONAR_DIST_LOWERBOUND, Constants.SONAR_DIST_UPPERBOUND);
-                throw new NumberFormatException(msg);
-            }
-        } catch (NumberFormatException e) {
-            maxSonarDist = Constants.SONAR_DIST_UPPERBOUND;
-            mSonarMaxDist.setText(String.valueOf(maxSonarDist));
-            e.printStackTrace();
-        }
-
-        int sonarTolerance = Integer.parseInt(String.valueOf(mSonarTolerance.getText()));
-        int sonarMedianFilterSize = Integer.parseInt(String.valueOf(mSonarMedianFilterSize.getText()));
+        int maxSonarDist = getProgressValid(mSonarMaxDist, Constants.SONAR_DIST_LOWERBOUND);
+        int sonarTolerance = getProgressValid(mSonarTolerance, 1);
+        int sonarMedianFilterSize = getProgressValid(mSonarMedianFilterSize, 1);
 
         editor.putBoolean(Constants.INVERSE_SERVO_ANGLE_KEY, mInverseServo.isChecked());
         editor.putInt(Constants.SONAR_MAX_DIST_KEY, maxSonarDist);

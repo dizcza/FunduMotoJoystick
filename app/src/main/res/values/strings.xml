@@ -13,4 +13,5 @@
     <string name="invert_servo">Invert servo angle</string>
     <string name="sonar_tolerance_in_cm">Sonar tolerance in cm</string>
     <string name="sonar_median_filter">Sonar median filter size</string>
+    <string name="limit_sonar_range_dist">Limit sonar range dist in cm</string>
 </resources>

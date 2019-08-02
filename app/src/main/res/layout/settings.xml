@@ -16,70 +16,79 @@
         android:layout_height="2dp"
         android:background="?android:attr/listDivider" />
 
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:text="@string/limit_sonar_range_dist" />
 
     <LinearLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="@dimen/settings_list_item_height"
         android:orientation="horizontal">
 
-        <TextView
-            android:id="@+id/sonar_dist_text"
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_weight="2"
-            android:gravity="start|center_vertical" />
-
-        <EditText
+        <SeekBar
             android:id="@+id/max_sonar_dist"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="0dp"
             android:layout_weight="1"
-            android:inputType="numberDecimal"
-            android:maxLength="3" />
+            android:layout_height="match_parent"
+            android:max="400" />
+
+        <TextView
+            android:id="@+id/max_sonar_dist_text"
+            android:layout_width="0dp"
+            android:layout_weight="0.5"
+            android:layout_height="match_parent" />
 
     </LinearLayout>
 
-    <LinearLayout
+    <TextView
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
+        android:text="@string/sonar_tolerance_in_cm" />
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/settings_list_item_height"
         android:orientation="horizontal">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_weight="2"
-            android:gravity="start|center_vertical"
-            android:text="@string/sonar_tolerance_in_cm" />
-
-        <EditText
+        <SeekBar
             android:id="@+id/sonar_tolerance"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
             android:layout_weight="1"
-            android:inputType="numberDecimal"
-            android:maxLength="1" />
+            android:max="9" />
+
+        <TextView
+            android:id="@+id/sonar_tolerance_text"
+            android:layout_width="0dp"
+            android:layout_weight="0.5"
+            android:layout_height="match_parent" />
 
     </LinearLayout>
+
+
+    <TextView
+        android:layout_width="match_parent"
+        android:layout_height="@dimen/settings_list_item_height"
+        android:text="@string/sonar_median_filter" />
 
     <LinearLayout
         android:layout_width="match_parent"
         android:layout_height="wrap_content"
         android:orientation="horizontal">
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="match_parent"
-            android:layout_weight="2"
-            android:gravity="start|center_vertical"
-            android:text="@string/sonar_median_filter" />
-
-        <EditText
+        <SeekBar
             android:id="@+id/sonar_median_filter_size"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
+            android:layout_width="0dp"
             android:layout_weight="1"
-            android:inputType="numberDecimal"
-            android:maxLength="1" />
+            android:layout_height="match_parent"
+            android:max="7"/>
+
+        <TextView
+            android:id="@+id/sonar_median_filter_size_text"
+            android:layout_width="0dp"
+            android:layout_weight="0.5"
+            android:layout_height="match_parent" />
 
     </LinearLayout>
 

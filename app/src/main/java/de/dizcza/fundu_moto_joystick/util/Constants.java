@@ -21,7 +21,7 @@ public class Constants {
     public static final int SONAR_DIST_UPPERBOUND = 400;  // cm
     public static final int SONAR_DIST_LOWERBOUND = 10;  // cm
     public static final int SONAR_TOLERANCE_DEFAULT = 1; // cm
-    public static final int SONAR_MEDIAN_FILTER_SIZE_DEFAULT = 5;
+    public static final int SONAR_MEDIAN_FILTER_SIZE_DEFAULT = 3;
 
     public static final String NEW_LINE = "\r\n";
 
