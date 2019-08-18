@@ -216,8 +216,8 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
         final ToggleButton autonomousBtn = joystickView.findViewById(R.id.autonomous_btn);
         autonomousBtn.setOnClickListener(v -> {
-            int newState = autonomousBtn.isChecked() ? 0 : 1;
-            String autonomousCmd = String.format(Locale.ENGLISH, "A%d%s", newState, Constants.NEW_LINE);
+            int updatedState = autonomousBtn.isChecked() ? 1 : 0;
+            String autonomousCmd = String.format(Locale.ENGLISH, "A%d%s", updatedState, Constants.NEW_LINE);
             send(autonomousCmd.getBytes());
         });
 
