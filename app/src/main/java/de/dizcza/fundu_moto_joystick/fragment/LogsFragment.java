@@ -10,6 +10,8 @@ import android.view.MenuInflater;
 import android.view.MenuItem;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
+import android.widget.ImageButton;
 import android.widget.TextView;
 
 import java.util.Arrays;
@@ -24,6 +26,7 @@ public class LogsFragment extends Fragment {
     private final LogsView mStatusView = new LogsView();
     private final LogsView mSentView = new LogsView();
     private final LogsView mReceivedView = new LogsView();
+    private JoystickFragment mJoystickFragment;
 
     private class LogsView {
         TextView view;
@@ -35,6 +38,10 @@ public class LogsFragment extends Fragment {
     }
 
     public LogsFragment() {
+    }
+
+    public void setJoystickFragment(JoystickFragment joystickFragment) {
+        mJoystickFragment = joystickFragment;
     }
 
     @Override
@@ -50,6 +57,13 @@ public class LogsFragment extends Fragment {
         mStatusView.setView(view.findViewById(R.id.logs_status));
         mSentView.setView(view.findViewById(R.id.logs_sent));
         mReceivedView.setView(view.findViewById(R.id.logs_received));
+        final EditText commandView = view.findViewById(R.id.send_text);
+        final ImageButton sendCmdButton = view.findViewById(R.id.send_btn);
+        sendCmdButton.setOnClickListener(v -> {
+            final String command = commandView.getText().toString();
+            mJoystickFragment.send(command.getBytes());
+            mSentView.view.append(command + Constants.NEW_LINE);
+        });
         return view;
     }
 

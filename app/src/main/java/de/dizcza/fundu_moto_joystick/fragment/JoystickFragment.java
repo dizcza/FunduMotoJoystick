@@ -81,6 +81,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         deviceAddress = getArguments().getString("device");
         deviceName = getArguments().getString("deviceName");
         mLogsFragment = new LogsFragment();
+        mLogsFragment.setJoystickFragment(this);
     }
 
     @Override
@@ -344,7 +345,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         Toast.makeText(getContext(), message, Toast.LENGTH_SHORT).show();
     }
 
-    private boolean send(byte[] data) {
+    public boolean send(byte[] data) {
         return send(data, false);
     }
 
