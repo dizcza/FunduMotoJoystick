@@ -24,8 +24,10 @@ import android.view.MenuItem;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Button;
 import android.widget.ImageView;
 import android.widget.Toast;
+import android.widget.ToggleButton;
 
 import com.marcinmoskala.arcseekbar.ArcSeekBar;
 import com.marcinmoskala.arcseekbar.ProgressListener;
@@ -189,26 +191,34 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             }
         });
 
-        ImageView hornView = joystickView.findViewById(R.id.horn);
-        hornView.setOnTouchListener(new View.OnTouchListener() {
-            @Override
-            public boolean onTouch(View v, MotionEvent event) {
-                char action = '\0';
-                switch (event.getAction() & MotionEvent.ACTION_MASK) {
-                    case MotionEvent.ACTION_DOWN:
-                        action = '1';  // activate buzzer
-                        break;
-                    case MotionEvent.ACTION_UP:
-                        action = '0';  // deactivate buzzer
-                        break;
-                }
-                if (action != '\0') {
-                    String hornCmd = String.format(Locale.ENGLISH,"B%c%s", action, Constants.NEW_LINE);
-                    send(hornCmd.getBytes(), true);
-                    return true;
-                }
-                return false;
+        final ImageView beepVolumeImg = joystickView.findViewById(R.id.beep_volume);
+        beepVolumeImg.setAlpha(Constants.BEEP_VOLUME_ALPHA_OFF);
+        final Button beepBtn = joystickView.findViewById(R.id.beep_btn);
+        beepBtn.setOnTouchListener((v, event) -> {
+            char action = '\0';
+            switch (event.getAction() & MotionEvent.ACTION_MASK) {
+                case MotionEvent.ACTION_DOWN:
+                    action = '1';  // activate buzzer
+                    beepVolumeImg.setAlpha(Constants.BEEP_VOLUME_ALPHA_ON);
+                    break;
+                case MotionEvent.ACTION_UP:
+                    action = '0';  // deactivate buzzer
+                    beepVolumeImg.setAlpha(Constants.BEEP_VOLUME_ALPHA_OFF);
+                    break;
             }
+            if (action != '\0') {
+                String hornCmd = String.format(Locale.ENGLISH,"B%c%s", action, Constants.NEW_LINE);
+                send(hornCmd.getBytes(), true);
+                return true;
+            }
+            return false;
+        });
+
+        final ToggleButton autonomousBtn = joystickView.findViewById(R.id.autonomous_btn);
+        autonomousBtn.setOnClickListener(v -> {
+            int newState = autonomousBtn.isChecked() ? 0 : 1;
+            String autonomousCmd = String.format(Locale.ENGLISH, "A%d%s", newState, Constants.NEW_LINE);
+            send(autonomousCmd.getBytes());
         });
 
         final int borderlineWidth = getResources().getDimensionPixelSize(R.dimen.circle_background_borderline_width);

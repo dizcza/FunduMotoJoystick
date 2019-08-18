@@ -21,6 +21,9 @@ public class Constants {
     public static final int SONAR_TOLERANCE_DEFAULT = 1; // cm
     public static final int SONAR_MEDIAN_FILTER_SIZE_DEFAULT = 3;
 
+    public static final float BEEP_VOLUME_ALPHA_OFF = 0.4f;
+    public static final float BEEP_VOLUME_ALPHA_ON = 1.0f;
+
     public static final String NEW_LINE = "\r\n";
 
     private Constants() {}

@@ -15,4 +15,7 @@
     <string name="sonar_median_filter">Sonar median filter size</string>
     <string name="limit_sonar_range_dist">Limit sonar range dist in cm</string>
     <string name="enter_command">Enter command</string>
+    <string name="beep">Beep</string>
+    <string name="turn_autonomous_off">Turn Autonomous OFF</string>
+    <string name="turn_autonomous_on">Turn Autonomous ON</string>
 </resources>

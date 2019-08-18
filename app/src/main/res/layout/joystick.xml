@@ -75,14 +75,33 @@
             android:src="@drawable/circle_direction" />
     </RelativeLayout>
 
-    <ImageView
-        android:id="@+id/horn"
-        android:visibility="invisible"
-        android:layout_width="@dimen/horn_size"
-        android:layout_height="@dimen/horn_size"
-        android:layout_gravity="end"
-        android:layout_marginEnd="20dp"
-        android:src="@drawable/horn" />
+    <LinearLayout
+        android:orientation="horizontal"
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content">
+
+        <Button
+            android:id="@+id/beep_btn"
+            android:layout_width="wrap_content"
+            android:layout_height="@dimen/btn_size"
+            android:text="@string/beep"/>
+
+        <ImageView
+            android:id="@+id/beep_volume"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="center"
+            android:src="@drawable/ic_volume_beep"/>
+
+    </LinearLayout>
+
+    <ToggleButton
+        android:id="@+id/autonomous_btn"
+        android:layout_width="wrap_content"
+        android:layout_height="@dimen/btn_size"
+        android:checked="false"
+        android:textOn="@string/turn_autonomous_off"
+        android:textOff="@string/turn_autonomous_on"/>
 
 
 </LinearLayout>
