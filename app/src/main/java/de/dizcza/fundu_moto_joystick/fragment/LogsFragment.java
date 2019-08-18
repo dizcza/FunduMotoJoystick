@@ -61,8 +61,9 @@ public class LogsFragment extends Fragment {
         final ImageButton sendCmdButton = view.findViewById(R.id.send_btn);
         sendCmdButton.setOnClickListener(v -> {
             final String command = commandView.getText().toString();
-            mJoystickFragment.send(command.getBytes());
-            mSentView.view.append(command + Constants.NEW_LINE);
+            if (mJoystickFragment.send(command.getBytes())) {
+                mSentView.view.append(command + Constants.NEW_LINE);
+            }
         });
         return view;
     }
