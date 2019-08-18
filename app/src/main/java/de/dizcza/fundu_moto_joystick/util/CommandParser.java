@@ -39,21 +39,23 @@ public class CommandParser {
         }
         switch (mCommand.charAt(0)) {
             case 'S':
-                //  S<servo angle:3d>,<sonar dist:.3f>
+                //  S<is_target:1d>,<servo angle:3d>,<sonar dist:.3f>
                 // angle in [-90, 90]
                 // dist in [0.00, 1.00]
-                if (mCommand.length() != 10 || mCommand.charAt(4) != ',') {
+                if (mCommand.length() != 12 || mCommand.charAt(2) != ',' || mCommand.charAt(6) != ',') {
                     // invalid packet
                     return;
                 }
+                int isTarget;
                 int servoAngle;
                 float sonarDistNorm;
                 try {
-                    servoAngle = Integer.parseInt(mCommand.substring(1, 4));
+                    isTarget = Integer.parseInt(mCommand.substring(1, 2));
+                    servoAngle = Integer.parseInt(mCommand.substring(3, 6));
                     if (Utils.isInverseServoAngleNeeded(mContext)) {
                         servoAngle = -servoAngle;
                     }
-                    sonarDistNorm = Float.parseFloat(mCommand.substring(5));
+                    sonarDistNorm = Float.parseFloat(mCommand.substring(7));
                 } catch (NumberFormatException e) {
                     e.printStackTrace();
                     return;
@@ -64,10 +66,12 @@ public class CommandParser {
                 }
                 float x = servoAngleNorm * mSonarView.getWidth();
                 float y = (1.0f - sonarDistNorm) * mSonarView.getHeight();
-                mSonarView.drawCircle(x, y);
-                break;
-            case 'R':
-                mSonarView.clear();
+                if (isTarget == 1) {
+                    mSonarView.clear();  // it also indicates range ping is finished
+                    mSonarView.drawRect(x, y);
+                } else {
+                    mSonarView.drawCircle(x, y);
+                }
                 break;
         }
     }

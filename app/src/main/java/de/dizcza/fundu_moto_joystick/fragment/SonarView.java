@@ -10,6 +10,8 @@ import android.view.View;
 
 public class SonarView extends View {
     private static final int POINT_RADIUS = 10;
+    private static final int RECT_SIZE = 20;
+
     private final Paint mPaint = new Paint();
     private final Path mPath = new Path();
 
@@ -27,6 +29,11 @@ public class SonarView extends View {
 
     public void drawCircle(float x, float y) {
         mPath.addCircle(x, y, POINT_RADIUS, Path.Direction.CW);
+        invalidate();
+    }
+
+    public void drawRect(float x, float y) {
+        mPath.addRect(x - RECT_SIZE, y - RECT_SIZE, x + RECT_SIZE, y + RECT_SIZE, Path.Direction.CW);
         invalidate();
     }
 
