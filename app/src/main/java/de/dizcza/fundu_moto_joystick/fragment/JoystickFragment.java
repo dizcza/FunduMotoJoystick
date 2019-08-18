@@ -2,7 +2,6 @@ package de.dizcza.fundu_moto_joystick.fragment;
 
 import android.annotation.SuppressLint;
 import android.app.Activity;
-import android.app.AlertDialog;
 import android.bluetooth.BluetoothAdapter;
 import android.bluetooth.BluetoothDevice;
 import android.content.ComponentName;
@@ -61,9 +60,10 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     private LogsFragment mLogsFragment;
     private ArcSeekBar mServoSlider;
     private SonarView mSonarView;
-    private MenuItem mConnectDeviceMenuItem;
+    private ToggleButton mAutonomousBtn;
 
     private PointF mPointerInitPos;
+    private MenuItem mConnectDeviceMenuItem;
     private PointF mPointerCenter;
     private CommandParser mCommandParser;
     private String mLastSentCommand = "";
@@ -179,6 +179,9 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         View joystickView = inflater.inflate(R.layout.joystick, container, false);
 
         mSonarView = joystickView.findViewById(R.id.sonar_view);
+        mSonarView.setOnClickListener(v -> {
+            mSonarView.clear();
+        });
         mCommandParser = new CommandParser(getContext(), mSonarView);
 
         mServoSlider = joystickView.findViewById(R.id.servo_slider);
@@ -214,11 +217,15 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
             return false;
         });
 
-        final ToggleButton autonomousBtn = joystickView.findViewById(R.id.autonomous_btn);
-        autonomousBtn.setOnClickListener(v -> {
-            int updatedState = autonomousBtn.isChecked() ? 1 : 0;
+        mAutonomousBtn = joystickView.findViewById(R.id.autonomous_btn);
+        mAutonomousBtn.setOnClickListener(v -> {
+            int updatedState = mAutonomousBtn.isChecked() ? 1 : 0;
             String autonomousCmd = String.format(Locale.ENGLISH, "A%d%s", updatedState, Constants.NEW_LINE);
-            send(autonomousCmd.getBytes());
+            boolean success = send(autonomousCmd.getBytes());
+            if (!success) {
+                // discard checked update
+                mAutonomousBtn.setChecked(!mAutonomousBtn.isChecked());
+            }
         });
 
         final int borderlineWidth = getResources().getDimensionPixelSize(R.dimen.circle_background_borderline_width);
@@ -235,10 +242,6 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
                 }
                 PointF moveVector = null;
                 switch (motionEvent.getAction() & MotionEvent.ACTION_MASK) {
-                    case MotionEvent.ACTION_DOWN:
-                        mSonarView.clear();
-                        break;
-
                     case MotionEvent.ACTION_MOVE:
                         final float maxDisplacement = (outerCircle.getWidth() - innerCircle.getWidth()) / 2.f - borderlineWidth;
                         // motionEvent.getX() returns X's position relative to the inner circle upper left corner
@@ -345,6 +348,9 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
     }
 
     private void disconnect() {
+        String manualMode = String.format(Locale.ENGLISH, "A0%s", Constants.NEW_LINE);
+        send(manualMode.getBytes());
+        mAutonomousBtn.setChecked(false);
         connected = Connected.False;
         service.disconnect();
         socket.disconnect();

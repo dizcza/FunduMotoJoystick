@@ -66,6 +66,9 @@ public class CommandParser {
                 float y = (1.0f - sonarDistNorm) * mSonarView.getHeight();
                 mSonarView.drawCircle(x, y);
                 break;
+            case 'R':
+                mSonarView.clear();
+                break;
         }
     }
 
