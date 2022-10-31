@@ -1,9 +1,9 @@
 package de.dizcza.fundu_moto_joystick.fragment;
 
 import android.os.Bundle;
-import android.support.annotation.NonNull;
-import android.support.annotation.Nullable;
-import android.support.v4.app.Fragment;
+import androidx.annotation.NonNull;
+import androidx.annotation.Nullable;
+import androidx.fragment.app.Fragment;
 import android.view.LayoutInflater;
 import android.view.Menu;
 import android.view.MenuInflater;
@@ -28,7 +28,7 @@ public class LogsFragment extends Fragment {
     private final LogsView mReceivedView = new LogsView();
     private JoystickFragment mJoystickFragment;
 
-    private class LogsView {
+    private static class LogsView {
         TextView view;
         final StringBuilder logs = new StringBuilder();
 
