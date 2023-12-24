@@ -103,5 +103,12 @@
         android:textOn="@string/turn_autonomous_off"
         android:textOff="@string/turn_autonomous_on"/>
 
+    <androidx.camera.view.PreviewView
+        android:id="@+id/viewFinder"
+        android:layout_width="135dp"
+        android:layout_height="180dp"
+        app:layout_constraintTop_toTopOf="parent"
+        app:layout_constraintStart_toEndOf="parent" />
+
 
 </LinearLayout>
