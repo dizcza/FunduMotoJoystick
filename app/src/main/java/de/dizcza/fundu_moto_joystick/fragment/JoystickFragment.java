@@ -88,8 +88,10 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
 
     @Override
     public void onDestroy() {
-        if (connected != Connected.False)
+        if (connected != Connected.False) {
+            turnOffAutomaticMode();
             disconnect();
+        }
         getContext().stopService(new Intent(getContext(), SerialService.class));
         super.onDestroy();
     }
@@ -347,9 +349,13 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         }
     }
 
-    private void disconnect() {
+    private  void turnOffAutomaticMode() {
+        // 'A0' switches the control to the manual mode
         String manualMode = String.format(Locale.ENGLISH, "A0%s", Constants.NEW_LINE);
         send(manualMode.getBytes());
+    }
+
+    private void disconnect() {
         mAutonomousBtn.setChecked(false);
         connected = Connected.False;
         service.disconnect();
@@ -403,6 +409,7 @@ public class JoystickFragment extends Fragment implements ServiceConnection, Ser
         switch (item.getItemId()) {
             case R.id.connect:
                 if (item.isChecked()) {
+                    turnOffAutomaticMode();
                     disconnect();
                     mSonarView.clear();
                 } else {
