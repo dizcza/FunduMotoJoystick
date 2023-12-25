@@ -7,6 +7,8 @@ import android.content.ComponentName
 import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
+import android.content.pm.PackageManager
+import android.graphics.PixelFormat
 import android.graphics.PointF
 import android.os.Bundle
 import android.os.IBinder
@@ -18,13 +20,29 @@ import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
+import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.Toast
 import android.widget.ToggleButton
+import androidx.activity.result.contract.ActivityResultContracts
+import androidx.annotation.OptIn
+import androidx.camera.core.AspectRatio
+import androidx.camera.core.CameraSelector
+import androidx.camera.core.ExperimentalGetImage
+import androidx.camera.core.ImageAnalysis
+import androidx.camera.core.Preview
+import androidx.camera.core.resolutionselector.AspectRatioStrategy
+import androidx.camera.core.resolutionselector.ResolutionSelector
+import androidx.camera.lifecycle.ProcessCameraProvider
+import androidx.camera.view.PreviewView
+import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
+import com.google.common.util.concurrent.ListenableFuture
 import com.marcinmoskala.arcseekbar.ArcSeekBar
 import com.marcinmoskala.arcseekbar.ProgressListener
+import de.dizcza.fundu_moto_joystick.HandsTracker
+import de.dizcza.fundu_moto_joystick.LandmarksOverlayView
 import de.dizcza.fundu_moto_joystick.R
 import de.dizcza.fundu_moto_joystick.serial.SerialListener
 import de.dizcza.fundu_moto_joystick.serial.SerialService
@@ -36,6 +54,8 @@ import de.dizcza.fundu_moto_joystick.util.ToastRefrain
 import de.dizcza.fundu_moto_joystick.util.Utils
 import java.io.IOException
 import java.util.Locale
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
 
 class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
     private enum class Connected {
@@ -60,9 +80,13 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
     private var mCommandParser: CommandParser? = null
     private var mLastSentCommand = ""
 
-    /*
-     * Lifecycle
-     */
+    private lateinit var previewView: PreviewView
+    private lateinit var mediapipeExecutor: ExecutorService
+    private lateinit var handsTracker: HandsTracker
+    private lateinit var overlayView: LandmarksOverlayView
+    private lateinit var imageAnalyzer: ImageAnalysis
+    private lateinit var cameraProvider: ProcessCameraProvider
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
@@ -72,6 +96,40 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
         mLogsFragment = LogsFragment()
         mLogsFragment!!.setJoystickFragment(this)
     }
+
+    private fun startCamera() {
+        val cameraProviderFuture =
+            ProcessCameraProvider.getInstance(requireContext())
+        cameraProviderFuture.addListener(
+            {
+                // CameraProvider
+                cameraProvider = cameraProviderFuture.get()
+
+                // Build and bind the camera use cases
+                bindCameraUseCases()
+            }, ContextCompat.getMainExecutor(requireContext())
+        )
+    }
+
+    private fun startCameraSimple() {
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
+        val cameraProvider = cameraProviderFuture.get()
+
+        val preview = Preview.Builder().build()
+
+        val cameraSelector = CameraSelector.Builder()
+            .requireLensFacing(CameraSelector.LENS_FACING_FRONT)
+            .build()
+
+        preview.setSurfaceProvider(previewView.surfaceProvider)
+
+        val camera = cameraProvider.bindToLifecycle(
+            this,
+            cameraSelector,
+            preview
+        )
+    }
+
 
     override fun onDestroy() {
         if (connected != Connected.False) {
@@ -164,6 +222,7 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
         savedInstanceState: Bundle?
     ): View? {
         val joystickView = inflater.inflate(R.layout.joystick, container, false)
+        previewView = joystickView.findViewById(R.id.view_finder)
         mSonarView = joystickView.findViewById(R.id.sonar_view)
         mSonarView!!.setOnClickListener(View.OnClickListener { v: View? -> mSonarView!!.clear() })
         mCommandParser = CommandParser(context, mSonarView)
@@ -269,7 +328,92 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
             }
             true
         }
+
+        overlayView = joystickView.findViewById(R.id.overlay)
+
+        mediapipeExecutor = Executors.newSingleThreadExecutor()
+        mediapipeExecutor.execute {
+            handsTracker = HandsTracker(context = requireContext(), handsTrackerListener = overlayView)
+        }
+
+        requestCameraPermissionAndStart()
+
         return joystickView
+    }
+
+
+    // Declare and bind preview, capture and analysis use cases
+    @SuppressLint("UnsafeOptInUsageError")
+    private fun bindCameraUseCases() {
+
+        // Preview. Only using the 4:3 ratio because this is the closest to our models
+        val preview = Preview.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3)
+            .setTargetRotation(previewView.display.rotation)
+            .build()
+
+        // ImageAnalysis. Using RGBA 8888 to match how our models work
+        imageAnalyzer =
+            ImageAnalysis.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3)
+                .setTargetRotation(previewView.display.rotation)
+                .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+                .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
+                .build()
+                // The analyzer can then be assigned to the instance
+                .also {
+                    it.setAnalyzer(mediapipeExecutor) { image ->
+                        handsTracker(imageProxy = image)
+                    }
+                }
+
+        // Must unbind the use-cases before rebinding them
+        cameraProvider.unbindAll()
+
+        try {
+            // A variable number of use-cases can be passed here -
+            // camera provides access to CameraControl & CameraInfo
+            val camera = cameraProvider.bindToLifecycle(
+                this, CameraSelector.DEFAULT_FRONT_CAMERA, preview, imageAnalyzer
+            )
+
+            // Attach the viewfinder's surface provider to preview use case
+            preview.setSurfaceProvider(previewView.surfaceProvider)
+        } catch (exc: Exception) {
+            Log.e(TAG, "Use case binding failed", exc)
+        }
+    }
+
+
+    private fun bindCameraValerii() {
+        val resolutionSelector = ResolutionSelector.Builder()
+            .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY).build()
+
+        val imageAnalyzer = ImageAnalysis.Builder().setResolutionSelector(resolutionSelector)
+            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+            .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888).build()
+            .apply { setAnalyzer(mediapipeExecutor) { image -> handsTracker(imageProxy = image) } }
+
+        cameraProvider.unbindAll()
+
+        val preview = Preview.Builder().setResolutionSelector(resolutionSelector).build()
+            .apply { setSurfaceProvider(previewView.surfaceProvider) }
+        cameraProvider.bindToLifecycle(
+            this, CameraSelector.DEFAULT_FRONT_CAMERA, imageAnalyzer, preview
+        )
+    }
+
+    private fun requestCameraPermissionAndStart() {
+        val requestPermissionLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+                if (isGranted) {
+                    startCamera()
+                }
+            }
+
+        if (ContextCompat.checkSelfPermission(requireContext(), android.Manifest.permission.CAMERA) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionLauncher.launch(android.Manifest.permission.CAMERA)
+        } else {
+            startCamera()
+        }
     }
 
     override fun onCreateOptionsMenu(menu: Menu, inflater: MenuInflater) {

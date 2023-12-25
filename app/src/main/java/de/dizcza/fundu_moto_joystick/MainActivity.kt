@@ -23,11 +23,8 @@ class MainActivity : AppCompatActivity(), FragmentManager.OnBackStackChangedList
 
 
     private fun requestBluetoothPermission() {
-        val permission = android.Manifest.permission.BLUETOOTH_CONNECT
-        val permissionGranted =
-            ContextCompat.checkSelfPermission(this, permission) == PackageManager.PERMISSION_GRANTED
-        if (!permissionGranted) {
-            requestPermissionLauncher.launch(permission)
+        if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
+            requestPermissionLauncher.launch(android.Manifest.permission.BLUETOOTH_CONNECT)
         }
     }
 
