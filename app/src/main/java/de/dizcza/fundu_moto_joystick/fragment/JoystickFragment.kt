@@ -13,7 +13,6 @@ import android.os.Bundle
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
-import android.os.SystemClock
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
@@ -59,7 +58,7 @@ import kotlin.math.atan2
 import kotlin.math.sqrt
 
 
-class JoystickFragment : Fragment(), ServiceConnection, SerialListener, HandsTracker.HandsTrackerListener {
+class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
     private enum class Connected {
         False,
         Pending,
@@ -89,6 +88,132 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener, HandsTra
     private lateinit var overlayView: LandmarksOverlayView
     private lateinit var imageAnalyzer: ImageAnalysis
     private lateinit var cameraProvider: ProcessCameraProvider
+    private lateinit var steeringWheelControl: SteeringWheelControl
+
+    inner class SteeringWheelControl : View.OnTouchListener {
+
+        fun sendMoveCommand(moveVector: PointF?) {
+            if (moveVector != null && connected == Connected.True) {
+                val x = moveVector.x
+                val y = moveVector.y
+                val angle = Math.toDegrees(atan2(y, x).toDouble())
+                val radiusNorm = sqrt(x * x + y * y)
+                val motorCommand = String.format(
+                    "M%04d,%.2f%s",
+                    angle.toInt(),
+                    radiusNorm,
+                    Constants.NEW_LINE
+                )
+                if (Looper.myLooper() == Looper.getMainLooper()) {
+                    // on UI thread
+                    send(motorCommand.toByteArray())
+                } else {
+                    Handler(Looper.getMainLooper()).post {
+                        send(motorCommand.toByteArray())
+                    }
+                }
+            }
+        }
+
+        fun updateTouchPosAndMoveVec(displacementX: Float, displacementY: Float) : Pair<PointF, PointF> {
+            val pointerCenter = PointF(outerCircle.width / 2f, outerCircle.height / 2f)
+            val maxDisplacement = (outerCircle.width - innerCircle.width) / 2f - ringBorderlineWidth
+            val dist = sqrt(displacementX * displacementX + displacementY * displacementY)
+            var displacementXBounded = displacementX
+            var displacementYBounded = displacementY
+            if (dist > maxDisplacement) {
+                val scale = maxDisplacement / dist
+                displacementXBounded *= scale
+                displacementYBounded *= scale
+            }
+            val newPos = PointF(
+                pointerCenter.x + displacementXBounded,
+                pointerCenter.y + displacementYBounded
+            )
+            val moveVector = PointF(
+                displacementX / maxDisplacement,
+                -displacementY / maxDisplacement
+            )
+            return Pair(newPos, moveVector)
+        }
+
+        override fun onTouch(view: View, motionEvent: MotionEvent): Boolean {
+            view.performClick()  // not really needed
+            val pointerInitPos = PointF(
+                (outerCircle.width - innerCircle.width) / 2f,
+                (outerCircle.height - innerCircle.height) / 2f
+            )
+            val pointerCenter = PointF(outerCircle.width / 2f, outerCircle.height / 2f)
+            var moveVector: PointF? = null
+            when (motionEvent.action and MotionEvent.ACTION_MASK) {
+                MotionEvent.ACTION_MOVE -> {
+                    // motionEvent.x is relative to the inner circle upper left corner
+                    val displacementX = view.x + motionEvent.x - pointerCenter.x
+                    val displacementY = view.y + motionEvent.y - pointerCenter.y
+                    val (newPos, moveVectorRes) = updateTouchPosAndMoveVec(displacementX, displacementY)
+                    moveVector = moveVectorRes
+                    view.x = newPos.x - view.width / 2f
+                    view.y = newPos.y - view.height / 2f
+                }
+
+                MotionEvent.ACTION_UP -> {
+                    view.x = pointerInitPos.x
+                    view.y = pointerInitPos.y
+                    moveVector = PointF(0f, 0f)
+                }
+            }
+            sendMoveCommand(moveVector)
+            return true
+        }
+
+    }
+
+    inner class AirTouchWheelControl : HandsTracker.HandsTrackerListener {
+
+        private var handDetected = false
+        private val moveScale = 2f
+
+        private fun airtouchSendMotionEvent(palmCenterNorm: PointF) {
+            val displacementX = moveScale * (palmCenterNorm.x - 0.5f) * outerCircle.width / 2f
+            val displacementY = moveScale * (palmCenterNorm.y - 0.5f) * outerCircle.height / 2f
+            val (newPos, moveVector) = steeringWheelControl.updateTouchPosAndMoveVec(displacementX, displacementY)
+            steeringWheelControl.sendMoveCommand(moveVector)
+            Handler(Looper.getMainLooper()).post {
+                innerCircle.x = newPos.x - innerCircle.width / 2f
+                innerCircle.y = newPos.y - innerCircle.height / 2f
+            }
+            handDetected = true
+        }
+
+        private fun airtouchResetSteeringWheel() {
+            if (!handDetected) {
+                return
+            }
+            steeringWheelControl.sendMoveCommand(moveVector = PointF(0f, 0f))
+            Handler(Looper.getMainLooper()).post {
+                val pointerInitPos = PointF(
+                    (outerCircle.width - innerCircle.width) / 2f,
+                    (outerCircle.height - innerCircle.height) / 2f
+                )
+                innerCircle.x = pointerInitPos.x
+                innerCircle.y = pointerInitPos.y
+            }
+            handDetected = false
+        }
+
+        override fun onHandsDetected(results: HandLandmarkerResult, imageHeight: Int, imageWidth: Int) {
+            if (results.landmarks().isEmpty()) {
+                airtouchResetSteeringWheel()
+                return
+            }
+            val landmarks = results.landmarks().first()
+            if (landmarks == null) {
+                airtouchResetSteeringWheel()
+                return
+            }
+            airtouchSendMotionEvent(getPalmCenter(landmarks))
+        }
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -99,6 +224,7 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener, HandsTra
         mLogsFragment = LogsFragment()
         mLogsFragment.setJoystickFragment(this)
         ringBorderlineWidth = resources.getDimensionPixelSize(R.dimen.circle_background_borderline_width)
+        steeringWheelControl = SteeringWheelControl()
     }
 
     private fun startCamera() {
@@ -251,62 +377,8 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener, HandsTra
         })
         innerCircle = joystickView.findViewById(R.id.circle_direction_view)
         outerCircle = joystickView.findViewById(R.id.circle_background_view)
-        innerCircle.setOnTouchListener { view, motionEvent ->
-            val pointerInitPos = PointF(
-                (outerCircle.width - innerCircle.width) / 2f, 
-                (outerCircle.height - innerCircle.height) / 2f
-            )
-            val pointerCenter = PointF(outerCircle.width / 2f, outerCircle.height / 2f)
-            var moveVector: PointF? = null
-            when (motionEvent.action and MotionEvent.ACTION_MASK) {
-                MotionEvent.ACTION_MOVE -> {
-                    val maxDisplacement =
-                        (outerCircle.width - innerCircle.width) / 2f - ringBorderlineWidth
-                    // motionEvent.x is relative to the inner circle upper left corner
-                    val newPos = PointF(
-                        view.x + motionEvent.x,
-                        view.y + motionEvent.y
-                    )
-                    var displacementX = newPos.x - pointerCenter.x
-                    var displacementY = newPos.y - pointerCenter.y
-                    val dist = sqrt((displacementX * displacementX + displacementY * displacementY).toDouble())
-                        .toFloat()
-                    if (dist > maxDisplacement) {
-                        val scale = maxDisplacement / dist
-                        displacementX *= scale
-                        displacementY *= scale
-                        newPos.x = pointerCenter.x + displacementX
-                        newPos.y = pointerCenter.y + displacementY
-                    }
-                    moveVector = PointF(
-                        displacementX / maxDisplacement,
-                        -displacementY / maxDisplacement
-                    )
-                    view.x = newPos.x - view.width / 2f
-                    view.y = newPos.y - view.height / 2f
-                }
 
-                MotionEvent.ACTION_UP -> {
-                    view.x = pointerInitPos.x
-                    view.y = pointerInitPos.y
-                    moveVector = PointF(0f, 0f)
-                }
-            }
-            if (moveVector != null) {
-                val x = moveVector.x
-                val y = moveVector.y
-                val angle = Math.toDegrees(atan2(y, x).toDouble())
-                val radiusNorm = sqrt(x * x + y * y)
-                val motorCommand = String.format(
-                    "M%04d,%.2f%s",
-                    angle.toInt(),
-                    radiusNorm,
-                    Constants.NEW_LINE
-                )
-                send(motorCommand.toByteArray())
-            }
-            true
-        }
+        innerCircle.setOnTouchListener(steeringWheelControl)
 
         overlayView = joystickView.findViewById(R.id.overlay)
 
@@ -314,7 +386,7 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener, HandsTra
         mediapipeExecutor.execute {
             handsTracker = HandsTracker(context = requireContext())
             handsTracker.addHandsTrackerListener(overlayView)
-            handsTracker.addHandsTrackerListener(this)
+            handsTracker.addHandsTrackerListener(AirTouchWheelControl())
         }
 
         requestCameraPermissionAndStart()
@@ -591,78 +663,4 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener, HandsTra
         return PointF(xCenter, yCenter)
     }
 
-    private fun airtouchSendMotionEvent(palmCenterNorm: PointF) {
-        val maxDisplacement = (outerCircle.width - innerCircle.width) / 2f - ringBorderlineWidth
-        var displacementX = (palmCenterNorm.x - 0.5f) * outerCircle.width / 2f
-        var displacementY = (palmCenterNorm.y - 0.5f) * outerCircle.height / 2f
-        val dist = sqrt(displacementX * displacementX + displacementY * displacementY)
-        if (dist > maxDisplacement) {
-            val scale = maxDisplacement / dist
-            displacementX *= scale
-            displacementY *= scale
-        }
-        val moveVector = PointF(
-            displacementX / maxDisplacement,
-            -displacementY / maxDisplacement
-        )
-
-        val x = moveVector.x
-        val y = moveVector.y
-        val angle = Math.toDegrees(atan2(y, x).toDouble())
-        val radiusNorm = sqrt(x * x + y * y)
-        val motorCommand = String.format(
-            "M%04d,%.2f%s",
-            angle.toInt(),
-            radiusNorm,
-            Constants.NEW_LINE
-        )
-        Handler(Looper.getMainLooper()).post {
-            val pointerCenter = PointF(outerCircle.width / 2f, outerCircle.height / 2f)
-            innerCircle.x = pointerCenter.x + displacementX - innerCircle.width / 2f
-            innerCircle.y = pointerCenter.y + displacementY - innerCircle.height / 2f
-            if (connected == Connected.True) {
-                send(motorCommand.toByteArray())
-            }
-        }
-    }
-
-    private fun airtouchResetSteeringWheel() {
-        val pointerInitPos = PointF(
-            (outerCircle.width - innerCircle.width) / 2f,
-            (outerCircle.height - innerCircle.height) / 2f
-        )
-        innerCircle.x = pointerInitPos.x
-        innerCircle.y = pointerInitPos.y
-
-        val x = 0f
-        val y = 0f
-        val angle = Math.toDegrees(atan2(y, x).toDouble())
-        val radiusNorm = sqrt(x * x + y * y)
-        val motorCommand = String.format(
-            "M%04d,%.2f%s",
-            angle.toInt(),
-            radiusNorm,
-            Constants.NEW_LINE
-        )
-        Handler(Looper.getMainLooper()).post {
-            innerCircle.x = pointerInitPos.x
-            innerCircle.y = pointerInitPos.y
-            if (connected == Connected.True) {
-                send(motorCommand.toByteArray())
-            }
-        }
-    }
-
-    override fun onHandsDetected(results: HandLandmarkerResult, imageHeight: Int, imageWidth: Int) {
-        if (results.landmarks().isEmpty()) {
-            airtouchResetSteeringWheel()
-            return
-        }
-        val landmarks = results.landmarks().first()
-        if (landmarks == null) {
-            airtouchResetSteeringWheel()
-            return
-        }
-        airtouchSendMotionEvent(getPalmCenter(landmarks))
-    }
 }
