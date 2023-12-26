@@ -19,25 +19,21 @@ class LandmarksOverlayView(context: Context?, attrs: AttributeSet?) : View(conte
         super.draw(canvas)
 
         if (results == null) {
-            Log.w(TAG, "No results to draw.")
             return
         }
 
-        val horizontalScale = imageWidth * scaleFactor
-        val verticalScale = imageHeight * scaleFactor
         for (currentHandLandmarks in results!!.landmarks()) {
             if (currentHandLandmarks == null) {
-                Log.w(TAG, "No hand landmarks")
                 continue
             }
             if (currentHandLandmarks.size * 2 != jointsCoordinates.size) {
-                Log.d(TAG, "Unexpected landmarks size: ${currentHandLandmarks.size}")
+                Log.d(TAG, "Unexpected landmarks vector size: ${currentHandLandmarks.size}")
                 continue
             }
 
             currentHandLandmarks.forEachIndexed { landmarkIndex, normalizedLandmark ->
-                val xCoordinate = normalizedLandmark.x() * horizontalScale
-                val yCoordinate = normalizedLandmark.y() * verticalScale
+                val xCoordinate = normalizedLandmark.x() * width
+                val yCoordinate = normalizedLandmark.y() * height
 
                 jointsCoordinates[landmarkIndex * 2] = xCoordinate
                 jointsCoordinates[landmarkIndex * 2 + 1] = yCoordinate
@@ -61,24 +57,16 @@ class LandmarksOverlayView(context: Context?, attrs: AttributeSet?) : View(conte
     }
 
     override fun onHandsDetected(
-        results: List<HandLandmarkerResult>,
+        results: HandLandmarkerResult,
         imageHeight: Int,
         imageWidth: Int,
-        mpImage: MPImage,
     ) {
-        this.results = results.first()
-        this.imageHeight = imageHeight
-        this.imageWidth = imageWidth
+        this.results = results
 
-        scaleFactor = max(width * 1f / imageWidth, height * 1f / imageHeight)
         invalidate()
     }
 
     private var results: HandLandmarkerResult? = null
-
-    private var scaleFactor: Float = 1f
-    private var imageWidth: Int = 1
-    private var imageHeight: Int = 1
 
     private val jointsCoordinates = FloatArray(21 * 2)
     private val bonesCoordinates = FloatArray(HandLandmarker.HAND_CONNECTIONS.size * 4)

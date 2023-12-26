@@ -8,10 +8,12 @@ import android.content.Context
 import android.content.Intent
 import android.content.ServiceConnection
 import android.content.pm.PackageManager
-import android.graphics.PixelFormat
 import android.graphics.PointF
 import android.os.Bundle
+import android.os.Handler
 import android.os.IBinder
+import android.os.Looper
+import android.os.SystemClock
 import android.util.Log
 import android.view.LayoutInflater
 import android.view.Menu
@@ -20,25 +22,22 @@ import android.view.MenuItem
 import android.view.MotionEvent
 import android.view.View
 import android.view.ViewGroup
-import android.view.WindowManager
 import android.widget.Button
 import android.widget.ImageView
 import android.widget.Toast
 import android.widget.ToggleButton
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.annotation.OptIn
 import androidx.camera.core.AspectRatio
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.Preview
-import androidx.camera.core.resolutionselector.AspectRatioStrategy
-import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.fragment.app.Fragment
-import com.google.common.util.concurrent.ListenableFuture
+import com.google.mediapipe.tasks.components.containers.NormalizedLandmark
+import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
+import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
 import com.marcinmoskala.arcseekbar.ArcSeekBar
 import com.marcinmoskala.arcseekbar.ProgressListener
 import de.dizcza.fundu_moto_joystick.HandsTracker
@@ -56,29 +55,33 @@ import java.io.IOException
 import java.util.Locale
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import kotlin.math.atan2
+import kotlin.math.sqrt
 
-class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
+
+class JoystickFragment : Fragment(), ServiceConnection, SerialListener, HandsTracker.HandsTrackerListener {
     private enum class Connected {
         False,
         Pending,
         True
     }
 
-    private var deviceAddress: String? = null
-    private var deviceName: String? = null
+    private lateinit var deviceAddress: String
+    private lateinit var deviceName: String
     private var socket: SerialSocket? = null
     private var service: SerialService? = null
     private var initialStart = true
     private var connected = Connected.False
-    private var mLogsFragment: LogsFragment? = null
+    private lateinit var mLogsFragment: LogsFragment
     private var mServoSlider: ArcSeekBar? = null
-    private var mSonarView: SonarView? = null
-    private var mAutonomousBtn: ToggleButton? = null
-    private var mPointerInitPos: PointF? = null
+    private lateinit var mSonarView: SonarView
+    private lateinit var innerCircle: ImageView
+    private lateinit var outerCircle: ImageView
+    private lateinit var mAutonomousBtn: ToggleButton
     private var mConnectDeviceMenuItem: MenuItem? = null
-    private var mPointerCenter: PointF? = null
     private var mCommandParser: CommandParser? = null
     private var mLastSentCommand = ""
+    private var ringBorderlineWidth = 0
 
     private lateinit var previewView: PreviewView
     private lateinit var mediapipeExecutor: ExecutorService
@@ -91,10 +94,11 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
         super.onCreate(savedInstanceState)
         setHasOptionsMenu(true)
         retainInstance = true
-        deviceAddress = requireArguments().getString("device")
-        deviceName = requireArguments().getString("deviceName")
+        deviceAddress = requireArguments().getString("device").toString()
+        deviceName = requireArguments().getString("deviceName").toString()
         mLogsFragment = LogsFragment()
-        mLogsFragment!!.setJoystickFragment(this)
+        mLogsFragment.setJoystickFragment(this)
+        ringBorderlineWidth = resources.getDimensionPixelSize(R.dimen.circle_background_borderline_width)
     }
 
     private fun startCamera() {
@@ -110,26 +114,6 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
             }, ContextCompat.getMainExecutor(requireContext())
         )
     }
-
-    private fun startCameraSimple() {
-        val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
-        val cameraProvider = cameraProviderFuture.get()
-
-        val preview = Preview.Builder().build()
-
-        val cameraSelector = CameraSelector.Builder()
-            .requireLensFacing(CameraSelector.LENS_FACING_FRONT)
-            .build()
-
-        preview.setSurfaceProvider(previewView.surfaceProvider)
-
-        val camera = cameraProvider.bindToLifecycle(
-            this,
-            cameraSelector,
-            preview
-        )
-    }
-
 
     override fun onDestroy() {
         if (connected != Connected.False) {
@@ -224,7 +208,7 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
         val joystickView = inflater.inflate(R.layout.joystick, container, false)
         previewView = joystickView.findViewById(R.id.view_finder)
         mSonarView = joystickView.findViewById(R.id.sonar_view)
-        mSonarView!!.setOnClickListener(View.OnClickListener { v: View? -> mSonarView!!.clear() })
+        mSonarView.setOnClickListener(View.OnClickListener { v: View? -> mSonarView.clear() })
         mCommandParser = CommandParser(context, mSonarView)
         mServoSlider = joystickView.findViewById(R.id.servo_slider)
         val intArray = resources.getIntArray(R.array.progressGradientColors)
@@ -255,70 +239,65 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
             false
         }
         mAutonomousBtn = joystickView.findViewById(R.id.autonomous_btn)
-        mAutonomousBtn!!.setOnClickListener(View.OnClickListener { v: View? ->
-            val updatedState = if (mAutonomousBtn!!.isChecked()) 1 else 0
+        mAutonomousBtn.setOnClickListener(View.OnClickListener { v: View? ->
+            val updatedState = if (mAutonomousBtn.isChecked) 1 else 0
             val autonomousCmd =
                 String.format(Locale.ENGLISH, "A%d%s", updatedState, Constants.NEW_LINE)
             val success = send(autonomousCmd.toByteArray())
             if (!success) {
                 // discard checked update
-                mAutonomousBtn!!.setChecked(!mAutonomousBtn!!.isChecked())
+                mAutonomousBtn.isChecked = !mAutonomousBtn.isChecked
             }
         })
-        val borderlineWidth =
-            resources.getDimensionPixelSize(R.dimen.circle_background_borderline_width)
-        val innerCircle = joystickView.findViewById<ImageView>(R.id.circle_direction_view)
-        val outerCircle = joystickView.findViewById<ImageView>(R.id.circle_background_view)
+        innerCircle = joystickView.findViewById(R.id.circle_direction_view)
+        outerCircle = joystickView.findViewById(R.id.circle_background_view)
         innerCircle.setOnTouchListener { view, motionEvent ->
-            if (mPointerInitPos == null) {
-                mPointerInitPos = PointF(view.x, view.y)
-                mPointerCenter = PointF(
-                    mPointerInitPos!!.x + view.width / 2f,
-                    mPointerInitPos!!.y + view.height / 2f
-                )
-            }
+            val pointerInitPos = PointF(
+                (outerCircle.width - innerCircle.width) / 2f, 
+                (outerCircle.height - innerCircle.height) / 2f
+            )
+            val pointerCenter = PointF(outerCircle.width / 2f, outerCircle.height / 2f)
             var moveVector: PointF? = null
             when (motionEvent.action and MotionEvent.ACTION_MASK) {
                 MotionEvent.ACTION_MOVE -> {
                     val maxDisplacement =
-                        (outerCircle.width - innerCircle.width) / 2f - borderlineWidth
-                    // motionEvent.getX() returns X's position relative to the inner circle upper left corner
+                        (outerCircle.width - innerCircle.width) / 2f - ringBorderlineWidth
+                    // motionEvent.x is relative to the inner circle upper left corner
                     val newPos = PointF(
                         view.x + motionEvent.x,
                         view.y + motionEvent.y
                     )
-                    var dx_pixels = newPos.x - mPointerCenter!!.x
-                    var dy_pixels = newPos.y - mPointerCenter!!.y
-                    val dist = Math.sqrt((dx_pixels * dx_pixels + dy_pixels * dy_pixels).toDouble())
+                    var displacementX = newPos.x - pointerCenter.x
+                    var displacementY = newPos.y - pointerCenter.y
+                    val dist = sqrt((displacementX * displacementX + displacementY * displacementY).toDouble())
                         .toFloat()
                     if (dist > maxDisplacement) {
                         val scale = maxDisplacement / dist
-                        dx_pixels *= scale
-                        dy_pixels *= scale
-                        newPos.x = mPointerCenter!!.x + dx_pixels
-                        newPos.y = mPointerCenter!!.y + dy_pixels
+                        displacementX *= scale
+                        displacementY *= scale
+                        newPos.x = pointerCenter.x + displacementX
+                        newPos.y = pointerCenter.y + displacementY
                     }
                     moveVector = PointF(
-                        dx_pixels / maxDisplacement,
-                        -dy_pixels / maxDisplacement
+                        displacementX / maxDisplacement,
+                        -displacementY / maxDisplacement
                     )
                     view.x = newPos.x - view.width / 2f
                     view.y = newPos.y - view.height / 2f
                 }
 
                 MotionEvent.ACTION_UP -> {
-                    view.x = mPointerInitPos!!.x
-                    view.y = mPointerInitPos!!.y
+                    view.x = pointerInitPos.x
+                    view.y = pointerInitPos.y
                     moveVector = PointF(0f, 0f)
                 }
             }
             if (moveVector != null) {
                 val x = moveVector.x
                 val y = moveVector.y
-                val angle = Math.atan2(y.toDouble(), x.toDouble()) * 180f / Math.PI
-                val radiusNorm = Math.sqrt((x * x + y * y).toDouble())
+                val angle = Math.toDegrees(atan2(y, x).toDouble())
+                val radiusNorm = sqrt(x * x + y * y)
                 val motorCommand = String.format(
-                    Locale.ENGLISH,
                     "M%04d,%.2f%s",
                     angle.toInt(),
                     radiusNorm,
@@ -333,7 +312,9 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
 
         mediapipeExecutor = Executors.newSingleThreadExecutor()
         mediapipeExecutor.execute {
-            handsTracker = HandsTracker(context = requireContext(), handsTrackerListener = overlayView)
+            handsTracker = HandsTracker(context = requireContext())
+            handsTracker.addHandsTrackerListener(overlayView)
+            handsTracker.addHandsTrackerListener(this)
         }
 
         requestCameraPermissionAndStart()
@@ -380,25 +361,6 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
         } catch (exc: Exception) {
             Log.e(TAG, "Use case binding failed", exc)
         }
-    }
-
-
-    private fun bindCameraValerii() {
-        val resolutionSelector = ResolutionSelector.Builder()
-            .setAspectRatioStrategy(AspectRatioStrategy.RATIO_4_3_FALLBACK_AUTO_STRATEGY).build()
-
-        val imageAnalyzer = ImageAnalysis.Builder().setResolutionSelector(resolutionSelector)
-            .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
-            .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888).build()
-            .apply { setAnalyzer(mediapipeExecutor) { image -> handsTracker(imageProxy = image) } }
-
-        cameraProvider.unbindAll()
-
-        val preview = Preview.Builder().setResolutionSelector(resolutionSelector).build()
-            .apply { setSurfaceProvider(previewView.surfaceProvider) }
-        cameraProvider.bindToLifecycle(
-            this, CameraSelector.DEFAULT_FRONT_CAMERA, imageAnalyzer, preview
-        )
     }
 
     private fun requestCameraPermissionAndStart() {
@@ -481,7 +443,7 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
             service!!.connect(this, message)
             socket!!.connect(context, service, device)
             val messagePending = getResourceString(R.string.connecting)
-            mLogsFragment!!.appendStatus(messagePending)
+            mLogsFragment.appendStatus(messagePending)
             Toast.makeText(context, messagePending, Toast.LENGTH_SHORT).show()
         } catch (e: Exception) {
             onSerialConnectError(e)
@@ -495,14 +457,14 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
     }
 
     private fun disconnect() {
-        mAutonomousBtn!!.isChecked = false
+        mAutonomousBtn.isChecked = false
         connected = Connected.False
         service!!.disconnect()
         socket!!.disconnect()
         updateConnectionStatus()
-        mSonarView!!.clear()
+        mSonarView.clear()
         val message = stripResourceNewLine(R.string.disconnected) + " from device\n"
-        mLogsFragment!!.appendStatus(message)
+        mLogsFragment.appendStatus(message)
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
@@ -522,7 +484,7 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
         var success: Boolean
         try {
             socket!!.write(data)
-            mLogsFragment!!.appendSent(command)
+            mLogsFragment.appendSent(command)
             mLastSentCommand = command
             success = true
             Log.d(TAG, command)
@@ -535,7 +497,7 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
 
     private fun receive(data: ByteArray) {
         mCommandParser!!.receive(data)
-        mLogsFragment!!.appendReceived(String(data))
+        mLogsFragment.appendReceived(String(data))
     }
 
     private fun stripResourceNewLine(resId: Int): String {
@@ -543,26 +505,31 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
         return str.substring(0, str.length - 1)
     }
 
+    @Deprecated("Deprecated in Java")
     override fun onOptionsItemSelected(item: MenuItem): Boolean {
-        if (item.itemId == R.id.connect) {
-            if (item.isChecked) {
-                turnOffAutomaticMode()
-                disconnect()
-                mSonarView!!.clear()
-            } else {
-                connect()
+        when (item.itemId) {
+            R.id.connect -> {
+                if (item.isChecked) {
+                    turnOffAutomaticMode()
+                    disconnect()
+                    mSonarView.clear()
+                } else {
+                    connect()
+                }
+                return true
             }
-            return true
-        } else if (item.itemId == R.id.show_logs) {
-            requireFragmentManager().beginTransaction().replace(R.id.fragment, mLogsFragment!!)
-                .addToBackStack(null).commit()
-            return true
-        } else if (item.itemId == R.id.settings_menu) {
-            requireFragmentManager().beginTransaction().replace(R.id.fragment, SettingsFragment())
-                .addToBackStack(null).commit()
-            return true
+            R.id.show_logs -> {
+                requireFragmentManager().beginTransaction().replace(R.id.fragment, mLogsFragment)
+                    .addToBackStack(null).commit()
+                return true
+            }
+            R.id.settings_menu -> {
+                requireFragmentManager().beginTransaction().replace(R.id.fragment, SettingsFragment())
+                    .addToBackStack(null).commit()
+                return true
+            }
+            else -> return super.onOptionsItemSelected(item)
         }
-        return super.onOptionsItemSelected(item)
     }
 
     /*
@@ -578,12 +545,12 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
             Locale.ENGLISH, "%s to %s\n",
             stripResourceNewLine(R.string.connected), deviceName
         )
-        mLogsFragment!!.appendStatus(message)
+        mLogsFragment.appendStatus(message)
         Toast.makeText(context, message, Toast.LENGTH_SHORT).show()
     }
 
     override fun onSerialConnectError(e: Exception) {
-        mLogsFragment!!.appendStatus("Connection failed: " + e.message + '\n')
+        mLogsFragment.appendStatus("Connection failed: " + e.message + '\n')
         disconnect()
     }
 
@@ -592,11 +559,110 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
     }
 
     override fun onSerialIoError(e: Exception) {
-        mLogsFragment!!.appendStatus("Connection lost: " + e.message + '\n')
+        mLogsFragment.appendStatus("Connection lost: " + e.message + '\n')
         disconnect()
     }
 
     companion object {
         private val TAG = JoystickFragment::class.java.name
+    }
+
+    private fun getPalmCenter(landmarks: List<NormalizedLandmark>): PointF {
+        var xCenter = 0f
+        var yCenter = 0f
+
+        val palmKeypoints = HashSet<Int>()
+
+        HandLandmarker.HAND_PALM_CONNECTIONS.forEach { bone ->
+            val startLandmarkIndex = bone.start()
+            val endLandmarkIndex = bone.end()
+            palmKeypoints.add(startLandmarkIndex)
+            palmKeypoints.add(endLandmarkIndex)
+        }
+
+        for (palmKeypoint in palmKeypoints) {
+            xCenter += landmarks[palmKeypoint].x()
+            yCenter += landmarks[palmKeypoint].y()
+        }
+
+        xCenter /= palmKeypoints.size
+        yCenter /= palmKeypoints.size
+
+        return PointF(xCenter, yCenter)
+    }
+
+    private fun airtouchSendMotionEvent(palmCenterNorm: PointF) {
+        val maxDisplacement = (outerCircle.width - innerCircle.width) / 2f - ringBorderlineWidth
+        var displacementX = (palmCenterNorm.x - 0.5f) * outerCircle.width / 2f
+        var displacementY = (palmCenterNorm.y - 0.5f) * outerCircle.height / 2f
+        val dist = sqrt(displacementX * displacementX + displacementY * displacementY)
+        if (dist > maxDisplacement) {
+            val scale = maxDisplacement / dist
+            displacementX *= scale
+            displacementY *= scale
+        }
+        val moveVector = PointF(
+            displacementX / maxDisplacement,
+            -displacementY / maxDisplacement
+        )
+
+        val x = moveVector.x
+        val y = moveVector.y
+        val angle = Math.toDegrees(atan2(y, x).toDouble())
+        val radiusNorm = sqrt(x * x + y * y)
+        val motorCommand = String.format(
+            "M%04d,%.2f%s",
+            angle.toInt(),
+            radiusNorm,
+            Constants.NEW_LINE
+        )
+        Handler(Looper.getMainLooper()).post {
+            val pointerCenter = PointF(outerCircle.width / 2f, outerCircle.height / 2f)
+            innerCircle.x = pointerCenter.x + displacementX - innerCircle.width / 2f
+            innerCircle.y = pointerCenter.y + displacementY - innerCircle.height / 2f
+            if (connected == Connected.True) {
+                send(motorCommand.toByteArray())
+            }
+        }
+    }
+
+    private fun airtouchResetSteeringWheel() {
+        val pointerInitPos = PointF(
+            (outerCircle.width - innerCircle.width) / 2f,
+            (outerCircle.height - innerCircle.height) / 2f
+        )
+        innerCircle.x = pointerInitPos.x
+        innerCircle.y = pointerInitPos.y
+
+        val x = 0f
+        val y = 0f
+        val angle = Math.toDegrees(atan2(y, x).toDouble())
+        val radiusNorm = sqrt(x * x + y * y)
+        val motorCommand = String.format(
+            "M%04d,%.2f%s",
+            angle.toInt(),
+            radiusNorm,
+            Constants.NEW_LINE
+        )
+        Handler(Looper.getMainLooper()).post {
+            innerCircle.x = pointerInitPos.x
+            innerCircle.y = pointerInitPos.y
+            if (connected == Connected.True) {
+                send(motorCommand.toByteArray())
+            }
+        }
+    }
+
+    override fun onHandsDetected(results: HandLandmarkerResult, imageHeight: Int, imageWidth: Int) {
+        if (results.landmarks().isEmpty()) {
+            airtouchResetSteeringWheel()
+            return
+        }
+        val landmarks = results.landmarks().first()
+        if (landmarks == null) {
+            airtouchResetSteeringWheel()
+            return
+        }
+        airtouchSendMotionEvent(getPalmCenter(landmarks))
     }
 }

@@ -13,9 +13,11 @@ import com.google.mediapipe.tasks.core.Delegate
 import com.google.mediapipe.tasks.vision.core.RunningMode
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarker
 import com.google.mediapipe.tasks.vision.handlandmarker.HandLandmarkerResult
+import java.util.ArrayList
 
-class HandsTracker(context: Context, private var handsTrackerListener: HandsTrackerListener) {
-    private var handLandmarker: HandLandmarker
+class HandsTracker(context: Context) {
+    private val handLandmarker: HandLandmarker
+    private val handsTrackerListeners = ArrayList<HandsTrackerListener>()
 
     init {
         val baseOptions = BaseOptions.builder().setDelegate(Delegate.CPU)
@@ -24,6 +26,10 @@ class HandsTracker(context: Context, private var handsTrackerListener: HandsTrac
             .setNumHands(1).setRunningMode(RunningMode.LIVE_STREAM)
             .setResultListener(this::onResult).setErrorListener(this::onError).build()
         handLandmarker = HandLandmarker.createFromOptions(context, options)
+    }
+
+    fun addHandsTrackerListener(listener: HandsTrackerListener) {
+        handsTrackerListeners.add(listener)
     }
 
     operator fun invoke(imageProxy: ImageProxy) {
@@ -46,9 +52,9 @@ class HandsTracker(context: Context, private var handsTrackerListener: HandsTrac
     }
 
     private fun onResult(handLandmarkerResult: HandLandmarkerResult, mpImage: MPImage) {
-        handsTrackerListener.onHandsDetected(
-            listOf(handLandmarkerResult), mpImage.height, mpImage.width, mpImage
-        )
+        for (listener in handsTrackerListeners) {
+            listener.onHandsDetected(handLandmarkerResult, mpImage.height, mpImage.width)
+        }
     }
 
     private fun onError(runtimeException: RuntimeException?) {
@@ -60,7 +66,7 @@ class HandsTracker(context: Context, private var handsTrackerListener: HandsTrac
 
     interface HandsTrackerListener {
         fun onHandsDetected(
-            results: List<HandLandmarkerResult>, imageHeight: Int, imageWidth: Int, mpImage: MPImage
+            results: HandLandmarkerResult, imageHeight: Int, imageWidth: Int
         )
     }
 
