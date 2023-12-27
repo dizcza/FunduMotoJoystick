@@ -6,4 +6,6 @@
     <dimen name="circle_direction_size">60dp</dimen>
     <dimen name="btn_size">50dp</dimen>
     <dimen name="settings_list_item_height">30dp</dimen>
+    <dimen name="settings_margin_top">10dp</dimen>
+    <dimen name="settings_margin_left">5dp</dimen>
 </resources>

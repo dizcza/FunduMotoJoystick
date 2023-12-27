@@ -3,12 +3,8 @@ package de.dizcza.fundu_moto_joystick.util
 import android.content.Context
 import de.dizcza.fundu_moto_joystick.fragment.SonarView
 
-class CommandParser(private val mContext: Context?, private val mSonarView: SonarView?) {
-    private val mCommand: StringBuilder
-
-    init {
-        mCommand = StringBuilder()
-    }
+class CommandParser(private val mContext: Context, private val mSonarView: SonarView) {
+    private val mCommand: StringBuilder = StringBuilder()
 
     fun receive(data: ByteArray) {
         for (item in data) {
@@ -25,7 +21,7 @@ class CommandParser(private val mContext: Context?, private val mSonarView: Sona
     }
 
     private fun process() {
-        if (mCommand.length == 0) {
+        if (mCommand.isEmpty()) {
             return
         }
         when (mCommand[0]) {
@@ -55,7 +51,7 @@ class CommandParser(private val mContext: Context?, private val mSonarView: Sona
                 if (sonarDistNorm > 1.0f) {
                     sonarDistNorm = 1.0f
                 }
-                val x = servoAngleNorm * mSonarView!!.width
+                val x = servoAngleNorm * mSonarView.width
                 val y = (1.0f - sonarDistNorm) * mSonarView.height
                 if (isTarget == 1) {
                     mSonarView.clear() // it also indicates range ping is finished

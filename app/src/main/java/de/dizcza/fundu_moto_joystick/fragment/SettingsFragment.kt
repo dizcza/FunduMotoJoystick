@@ -17,10 +17,12 @@ import de.dizcza.fundu_moto_joystick.R
 import de.dizcza.fundu_moto_joystick.util.Constants
 
 class SettingsFragment : Fragment(), OnBackPressed {
-    private var mInverseServo: CheckBox? = null
-    private var mSonarMaxDist: SeekBar? = null
-    private var mSonarTolerance: SeekBar? = null
-    private var mSonarMedianFilterSize: SeekBar? = null
+    private lateinit var mInverseServo: CheckBox
+    private lateinit var mSonarMaxDist: SeekBar
+    private lateinit var mSonarTolerance: SeekBar
+    private lateinit var mSonarMedianFilterSize: SeekBar
+    private lateinit var mMediapipeCheckbox: CheckBox
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         retainInstance = true
@@ -43,28 +45,36 @@ class SettingsFragment : Fragment(), OnBackPressed {
         savedInstanceState: Bundle?
     ): View? {
         val view = inflater.inflate(R.layout.settings, container, false)
+        val sharedPref = requireContext().getSharedPreferences(Constants.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE)
+
         mInverseServo = view.findViewById(R.id.invert_servo)
-        val sharedPref =
-            requireContext().getSharedPreferences(Constants.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE)
         val inverseAngle = sharedPref.getBoolean(Constants.INVERSE_SERVO_ANGLE_KEY, false)
-        mInverseServo!!.isChecked = inverseAngle
+        mInverseServo.isChecked = inverseAngle
+
         mSonarMaxDist = view.findViewById(R.id.max_sonar_dist)
         bindSeekBar(mSonarMaxDist, view.findViewById(R.id.max_sonar_dist_text))
         val upperbound = resources.getInteger(R.integer.sonar_max_dist_lowerbound)
         val maxDist = sharedPref.getInt(Constants.SONAR_MAX_DIST_KEY, upperbound)
-        mSonarMaxDist!!.progress = maxDist
+        mSonarMaxDist.progress = maxDist
+
         mSonarTolerance = view.findViewById(R.id.sonar_tolerance)
         bindSeekBar(mSonarTolerance, view.findViewById(R.id.sonar_tolerance_text))
         val toleranceCm =
             sharedPref.getInt(Constants.SONAR_TOLERANCE_KEY, Constants.SONAR_TOLERANCE_DEFAULT)
-        mSonarTolerance!!.progress = toleranceCm
+        mSonarTolerance.progress = toleranceCm
+
         mSonarMedianFilterSize = view.findViewById(R.id.sonar_median_filter_size)
         bindSeekBar(mSonarMedianFilterSize, view.findViewById(R.id.sonar_median_filter_size_text))
         val medianFilterSize = sharedPref.getInt(
             Constants.SONAR_MEDIAN_FILTER_SIZE_KEY,
             Constants.SONAR_MEDIAN_FILTER_SIZE_DEFAULT
         )
-        mSonarMedianFilterSize!!.progress = medianFilterSize
+        mSonarMedianFilterSize.progress = medianFilterSize
+
+        mMediapipeCheckbox = view.findViewById(R.id.mediapipe_enabled)
+        val mediapipeEnabled = sharedPref.getBoolean(Constants.MEDIAPIPE_ENABLED_KEY, false)
+        mMediapipeCheckbox.isChecked = mediapipeEnabled
+
         val saveButton = view.findViewById<Button>(R.id.save_settings)
         saveButton.setOnClickListener { save() }
         return view
@@ -74,10 +84,11 @@ class SettingsFragment : Fragment(), OnBackPressed {
         val editor = requireContext().getSharedPreferences(
             Constants.PREFERENCE_FILE_NAME, Context.MODE_PRIVATE
         ).edit()
-        editor.putBoolean(Constants.INVERSE_SERVO_ANGLE_KEY, mInverseServo!!.isChecked)
-        editor.putInt(Constants.SONAR_MAX_DIST_KEY, mSonarMaxDist!!.progress)
-        editor.putInt(Constants.SONAR_TOLERANCE_KEY, mSonarTolerance!!.progress)
-        editor.putInt(Constants.SONAR_MEDIAN_FILTER_SIZE_KEY, mSonarMedianFilterSize!!.progress)
+        editor.putBoolean(Constants.INVERSE_SERVO_ANGLE_KEY, mInverseServo.isChecked)
+        editor.putInt(Constants.SONAR_MAX_DIST_KEY, mSonarMaxDist.progress)
+        editor.putInt(Constants.SONAR_TOLERANCE_KEY, mSonarTolerance.progress)
+        editor.putInt(Constants.SONAR_MEDIAN_FILTER_SIZE_KEY, mSonarMedianFilterSize.progress)
+        editor.putBoolean(Constants.MEDIAPIPE_ENABLED_KEY, mMediapipeCheckbox.isChecked)
         editor.commit()
         Toast.makeText(context, "Saved", Toast.LENGTH_SHORT).show()
     }

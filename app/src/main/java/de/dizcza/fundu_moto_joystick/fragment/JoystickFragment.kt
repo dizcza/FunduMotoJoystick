@@ -82,12 +82,9 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
     private var mLastSentCommand = ""
     private var ringBorderlineWidth = 0
 
-    private lateinit var previewView: PreviewView
+    private lateinit var cameraPreview: PreviewView
     private lateinit var mediapipeExecutor: ExecutorService
     private lateinit var handsTracker: HandsTracker
-    private lateinit var overlayView: LandmarksOverlayView
-    private lateinit var imageAnalyzer: ImageAnalysis
-    private lateinit var cameraProvider: ProcessCameraProvider
     private lateinit var steeringWheelControl: SteeringWheelControl
 
     inner class SteeringWheelControl : View.OnTouchListener {
@@ -228,15 +225,11 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
     }
 
     private fun startCamera() {
-        val cameraProviderFuture =
-            ProcessCameraProvider.getInstance(requireContext())
+        val cameraProviderFuture = ProcessCameraProvider.getInstance(requireContext())
         cameraProviderFuture.addListener(
             {
-                // CameraProvider
-                cameraProvider = cameraProviderFuture.get()
-
                 // Build and bind the camera use cases
-                bindCameraUseCases()
+                bindCameraUseCases(cameraProviderFuture.get())
             }, ContextCompat.getMainExecutor(requireContext())
         )
     }
@@ -315,7 +308,7 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
     private fun sendServoAngle(progress: Int) {
         val progressNormalized = progress / mServoSlider!!.maxProgress.toFloat()
         var angle = (progressNormalized * 180 - 90).toInt()
-        if (Utils.isInverseServoAngleNeeded(context)) {
+        if (Utils.isInverseServoAngleNeeded(requireContext())) {
             angle = -angle
         }
         val servoCommand = String.format(Locale.ENGLISH, "S%03d%s", angle, Constants.NEW_LINE)
@@ -332,10 +325,9 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
         savedInstanceState: Bundle?
     ): View? {
         val joystickView = inflater.inflate(R.layout.joystick, container, false)
-        previewView = joystickView.findViewById(R.id.view_finder)
         mSonarView = joystickView.findViewById(R.id.sonar_view)
-        mSonarView.setOnClickListener(View.OnClickListener { v: View? -> mSonarView.clear() })
-        mCommandParser = CommandParser(context, mSonarView)
+        mSonarView.setOnClickListener { v: View? -> mSonarView.clear() }
+        mCommandParser = CommandParser(requireContext(), mSonarView)
         mServoSlider = joystickView.findViewById(R.id.servo_slider)
         val intArray = resources.getIntArray(R.array.progressGradientColors)
         mServoSlider!!.setProgressGradient(*intArray)
@@ -365,7 +357,7 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
             false
         }
         mAutonomousBtn = joystickView.findViewById(R.id.autonomous_btn)
-        mAutonomousBtn.setOnClickListener(View.OnClickListener { v: View? ->
+        mAutonomousBtn.setOnClickListener { v: View? ->
             val updatedState = if (mAutonomousBtn.isChecked) 1 else 0
             val autonomousCmd =
                 String.format(Locale.ENGLISH, "A%d%s", updatedState, Constants.NEW_LINE)
@@ -374,22 +366,27 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
                 // discard checked update
                 mAutonomousBtn.isChecked = !mAutonomousBtn.isChecked
             }
-        })
+        }
         innerCircle = joystickView.findViewById(R.id.circle_direction_view)
         outerCircle = joystickView.findViewById(R.id.circle_background_view)
 
         innerCircle.setOnTouchListener(steeringWheelControl)
 
-        overlayView = joystickView.findViewById(R.id.overlay)
+        cameraPreview = joystickView.findViewById(R.id.view_finder)
+        val handLandmarksOverlayView = joystickView.findViewById<LandmarksOverlayView>(R.id.overlay)
 
-        mediapipeExecutor = Executors.newSingleThreadExecutor()
-        mediapipeExecutor.execute {
-            handsTracker = HandsTracker(context = requireContext())
-            handsTracker.addHandsTrackerListener(overlayView)
-            handsTracker.addHandsTrackerListener(AirTouchWheelControl())
+        if (Utils.isMediapipeEnabled(requireContext())) {
+            mediapipeExecutor = Executors.newSingleThreadExecutor()
+            mediapipeExecutor.execute {
+                handsTracker = HandsTracker(context = requireContext())
+                handsTracker.addHandsTrackerListener(handLandmarksOverlayView)
+                handsTracker.addHandsTrackerListener(AirTouchWheelControl())
+            }
+            requestCameraPermissionAndStart()
+        } else {
+            cameraPreview.visibility = View.GONE
+            handLandmarksOverlayView.visibility = View.GONE
         }
-
-        requestCameraPermissionAndStart()
 
         return joystickView
     }
@@ -397,17 +394,17 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
 
     // Declare and bind preview, capture and analysis use cases
     @SuppressLint("UnsafeOptInUsageError")
-    private fun bindCameraUseCases() {
+    private fun bindCameraUseCases(cameraProvider: ProcessCameraProvider) {
 
         // Preview. Only using the 4:3 ratio because this is the closest to our models
         val preview = Preview.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3)
-            .setTargetRotation(previewView.display.rotation)
+            .setTargetRotation(cameraPreview.display.rotation)
             .build()
 
         // ImageAnalysis. Using RGBA 8888 to match how our models work
-        imageAnalyzer =
+        val imageAnalyzer =
             ImageAnalysis.Builder().setTargetAspectRatio(AspectRatio.RATIO_4_3)
-                .setTargetRotation(previewView.display.rotation)
+                .setTargetRotation(cameraPreview.display.rotation)
                 .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
                 .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
                 .build()
@@ -429,7 +426,7 @@ class JoystickFragment : Fragment(), ServiceConnection, SerialListener {
             )
 
             // Attach the viewfinder's surface provider to preview use case
-            preview.setSurfaceProvider(previewView.surfaceProvider)
+            preview.setSurfaceProvider(cameraPreview.surfaceProvider)
         } catch (exc: Exception) {
             Log.e(TAG, "Use case binding failed", exc)
         }
