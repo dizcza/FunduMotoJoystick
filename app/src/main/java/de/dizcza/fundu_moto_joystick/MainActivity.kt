@@ -14,15 +14,16 @@ import de.dizcza.fundu_moto_joystick.fragment.DevicesFragment
 
 class MainActivity : AppCompatActivity(), FragmentManager.OnBackStackChangedListener {
 
-    private val requestPermissionLauncher =
-        registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
-            if (isGranted) {
-            } else {
-            }
-        }
-
-
     private fun requestBluetoothPermission() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.S) {
+            return
+        }
+        val requestPermissionLauncher =
+            registerForActivityResult(ActivityResultContracts.RequestPermission()) { isGranted ->
+                if (!isGranted) {
+                    finish()
+                }
+            }
         if (ContextCompat.checkSelfPermission(this, android.Manifest.permission.BLUETOOTH_CONNECT) != PackageManager.PERMISSION_GRANTED) {
             requestPermissionLauncher.launch(android.Manifest.permission.BLUETOOTH_CONNECT)
         }
@@ -49,8 +50,7 @@ class MainActivity : AppCompatActivity(), FragmentManager.OnBackStackChangedList
     }
 
     override fun onBackPressed() {
-        val fragments = supportFragmentManager.fragments
-        for (fragment in fragments) {
+        for (fragment in supportFragmentManager.fragments) {
             if (fragment is OnBackPressed) (fragment as OnBackPressed).onBackPressed()
         }
         super.onBackPressed()

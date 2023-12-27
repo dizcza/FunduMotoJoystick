@@ -36,22 +36,11 @@ dependencies {
     implementation "androidx.camera:camera-view:${camerax_version}"
     implementation 'com.google.android.material:material:1.11.0'
     implementation 'com.github.marcinmoskala:ArcSeekBar:0.34'
+    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
 
     // Kotlin lang
     implementation 'androidx.core:core-ktx:1.12.0'
-
-    // App compat and UI things
-    implementation 'com.google.android.material:material:1.11.0'
-    implementation 'androidx.constraintlayout:constraintlayout:2.1.4'
     implementation 'androidx.fragment:fragment-ktx:1.6.2'
-
-    // Navigation library
-    def nav_version = "2.7.6"
-    implementation "androidx.navigation:navigation-fragment-ktx:$nav_version"
-    implementation "androidx.navigation:navigation-ui-ktx:$nav_version"
-
-    // WindowManager
-    implementation 'androidx.window:window:1.3.0-alpha01'
 
     // MediaPipe Library
     implementation 'com.google.mediapipe:tasks-vision:0.20230731'

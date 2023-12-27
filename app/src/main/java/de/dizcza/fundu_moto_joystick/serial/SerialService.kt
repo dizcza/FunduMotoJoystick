@@ -6,7 +6,6 @@ import android.app.PendingIntent
 import android.app.Service
 import android.content.Intent
 import android.os.Binder
-import android.os.Build
 import android.os.Handler
 import android.os.IBinder
 import android.os.Looper
@@ -33,37 +32,25 @@ class SerialService : Service(), SerialListener {
         IoError
     }
 
-    private inner class QueueItem internal constructor(
+    private inner class QueueItem (
         var type: QueueType,
         var data: ByteArray?,
-        var e: Exception?
+        var exception: Exception?
     )
 
-    private val mainLooper: Handler
-    private val binder: IBinder
-    private val queue1: Queue<QueueItem>
-    private val queue2: Queue<QueueItem>
+    private val mainLooper: Handler = Handler(Looper.getMainLooper())
+    private val binder: IBinder = SerialBinder()
+    private val queue: Queue<QueueItem> = LinkedList()
     private var listener: SerialListener? = null
     private var connected = false
     private var notificationMsg: String? = null
 
-    /**
-     * Lifecylce
-     */
-    init {
-        mainLooper = Handler(Looper.getMainLooper())
-        binder = SerialBinder()
-        queue1 = LinkedList()
-        queue2 = LinkedList()
-    }
-
     override fun onDestroy() {
-        cancelNotification()
         disconnect()
         super.onDestroy()
     }
 
-    override fun onBind(intent: Intent): IBinder? {
+    override fun onBind(intent: Intent): IBinder {
         return binder
     }
 
@@ -77,6 +64,7 @@ class SerialService : Service(), SerialListener {
     }
 
     fun disconnect() {
+        cancelNotification()
         listener = null
         connected = false
         notificationMsg = null
@@ -85,37 +73,27 @@ class SerialService : Service(), SerialListener {
     fun attach(listener: SerialListener) {
         require(Looper.getMainLooper().thread === Thread.currentThread()) { "not in main thread" }
         cancelNotification()
-        // use synchronized() to prevent new items in queue2
-        // new items will not be added to queue1 because mainLooper.post and attach() run in main thread
         if (connected) {
             synchronized(this) { this.listener = listener }
         }
-        for (item in queue1) {
+        for (item in queue) {
             when (item.type) {
                 QueueType.Connect -> listener.onSerialConnect()
-                QueueType.ConnectError -> listener.onSerialConnectError(item.e!!)
+                QueueType.ConnectError -> listener.onSerialConnectError(item.exception!!)
                 QueueType.Read -> listener.onSerialRead(item.data!!)
-                QueueType.IoError -> listener.onSerialIoError(item.e!!)
+                QueueType.IoError -> listener.onSerialIoError(item.exception!!)
             }
         }
-        for (item in queue2) {
-            when (item.type) {
-                QueueType.Connect -> listener.onSerialConnect()
-                QueueType.ConnectError -> listener.onSerialConnectError(item.e!!)
-                QueueType.Read -> listener.onSerialRead(item.data!!)
-                QueueType.IoError -> listener.onSerialIoError(item.e!!)
-            }
-        }
-        queue1.clear()
-        queue2.clear()
+        queue.clear()
     }
 
     fun detach() {
         if (connected) createNotification()
         // items already in event queue (posted before detach() to mainLooper) will end up in queue1
-        // items occurring later, will be moved directly to queue2
         // detach() and mainLooper.post run in the main thread, so all items are caught
-        listener = null
+        synchronized(this) {
+            listener = null
+        }
     }
 
     private fun createNotification() {
@@ -158,7 +136,7 @@ class SerialService : Service(), SerialListener {
     }
 
     private fun cancelNotification() {
-        stopForeground(true)
+        stopForeground(STOP_FOREGROUND_REMOVE)
     }
 
     /**
@@ -167,16 +145,12 @@ class SerialService : Service(), SerialListener {
     override fun onSerialConnect() {
         if (connected) {
             synchronized(this) {
-                if (listener != null) {
-                    mainLooper.post {
-                        if (listener != null) {
-                            listener!!.onSerialConnect()
-                        } else {
-                            queue1.add(QueueItem(QueueType.Connect, null, null))
-                        }
+                mainLooper.post {
+                    if (listener != null) {
+                        listener!!.onSerialConnect()
+                    } else {
+                        queue.add(QueueItem(QueueType.Connect, null, null))
                     }
-                } else {
-                    queue2.add(QueueItem(QueueType.Connect, null, null))
                 }
             }
         }
@@ -185,20 +159,13 @@ class SerialService : Service(), SerialListener {
     override fun onSerialConnectError(e: Exception) {
         if (connected) {
             synchronized(this) {
-                if (listener != null) {
-                    mainLooper.post {
-                        if (listener != null) {
-                            listener!!.onSerialConnectError(e)
-                        } else {
-                            queue1.add(QueueItem(QueueType.ConnectError, null, e))
-                            cancelNotification()
-                            disconnect()
-                        }
+                mainLooper.post {
+                    if (listener != null) {
+                        listener!!.onSerialConnectError(e)
+                    } else {
+                        queue.add(QueueItem(QueueType.ConnectError, null, e))
+                        disconnect()
                     }
-                } else {
-                    queue2.add(QueueItem(QueueType.ConnectError, null, e))
-                    cancelNotification()
-                    disconnect()
                 }
             }
         }
@@ -207,16 +174,12 @@ class SerialService : Service(), SerialListener {
     override fun onSerialRead(data: ByteArray) {
         if (connected) {
             synchronized(this) {
-                if (listener != null) {
-                    mainLooper.post {
-                        if (listener != null) {
-                            listener!!.onSerialRead(data)
-                        } else {
-                            queue1.add(QueueItem(QueueType.Read, data, null))
-                        }
+                mainLooper.post {
+                    if (listener != null) {
+                        listener!!.onSerialRead(data)
+                    } else {
+                        queue.add(QueueItem(QueueType.Read, data, null))
                     }
-                } else {
-                    queue2.add(QueueItem(QueueType.Read, data, null))
                 }
             }
         }
@@ -225,20 +188,13 @@ class SerialService : Service(), SerialListener {
     override fun onSerialIoError(e: Exception) {
         if (connected) {
             synchronized(this) {
-                if (listener != null) {
-                    mainLooper.post {
-                        if (listener != null) {
-                            listener!!.onSerialIoError(e)
-                        } else {
-                            queue1.add(QueueItem(QueueType.IoError, null, e))
-                            cancelNotification()
-                            disconnect()
-                        }
+                mainLooper.post {
+                    if (listener != null) {
+                        listener!!.onSerialIoError(e)
+                    } else {
+                        queue.add(QueueItem(QueueType.IoError, null, e))
+                        disconnect()
                     }
-                } else {
-                    queue2.add(QueueItem(QueueType.IoError, null, e))
-                    cancelNotification()
-                    disconnect()
                 }
             }
         }
